@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { NotesProvider } from '@/components/NotesProvider';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -42,7 +43,11 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <NotesProvider>
+      <RootLayoutNav />
+    </NotesProvider>
+  );
 }
 
 function RootLayoutNav() {
