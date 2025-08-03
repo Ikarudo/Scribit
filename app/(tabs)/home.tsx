@@ -2,57 +2,43 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome, Feather } from '@expo/vector-icons';
-import { useNotes, Note } from '@/components/NotesProvider';
-import NoteEditor from '@/components/NoteEditor';
+import { useNotes, Book } from '@/components/NotesProvider';
 import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
-  const { notes, loading, pinNote, deleteNote, createNote, updateNote } = useNotes();
-  const [editorVisible, setEditorVisible] = useState(false);
-  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const { books, loading, toggleBookFavorite, deleteBook } = useNotes();
   const router = useRouter();
 
-  // Sort and select notes for sections
-  const recentlyUsed = [...notes]
-    .sort((a, b) => b.lastOpened - a.lastOpened)
+  // Sort and select books for sections
+  const recentlyUsed = [...books]
+    .sort((a, b) => (b.lastOpened || 0) - (a.lastOpened || 0))
     .slice(0, 5);
-  const frequentlyUsed = [...notes]
-    .sort((a, b) => b.openCount - a.openCount)
+  const favoritedBooks = [...books]
+    .filter(book => book.favorited)
     .slice(0, 5);
-  const allNotes = [...notes].sort((a, b) => b.createdAt - a.createdAt);
+  const allBooks = [...books].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-  const handlePin = (id: string, pinned: boolean) => {
-    pinNote(id, !pinned);
+  const handleToggleFavorite = (id: string, favorited: boolean) => {
+    toggleBookFavorite(id, !favorited);
   };
 
   const handleDelete = (id: string) => {
     if (!id) {
-      Alert.alert('Delete Error', 'This note cannot be deleted because it has no ID.');
+      Alert.alert('Delete Error', 'This book cannot be deleted because it has no ID.');
       return;
     }
-    Alert.alert('Delete Note', 'Are you sure you want to delete this note?', [
+    Alert.alert('Delete Book', 'Are you sure you want to delete this book? This will also delete all its pages.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteNote(id) },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteBook(id) },
     ]);
   };
 
-  const handleOpenEditor = (note?: Note) => {
-    setEditingNote(note || null);
-    setEditorVisible(true);
-  };
-
-  const handleSave = async (data: { title: string; content: string; category: string; pinned: boolean }) => {
-    if (editingNote) {
-      await updateNote(editingNote.id, {
-        ...data,
-        lastOpened: Date.now(),
-        openCount: (editingNote.openCount || 0) + 1,
-      });
-    } else {
-      await createNote(data);
-    }
-    setEditorVisible(false);
-    setEditingNote(null);
+  const handleOpenBook = (book: Book) => {
+    // Navigate to notes tab with the book selected
+    router.push({
+      pathname: '/(tabs)/notes',
+      params: { bookId: book.id }
+    });
   };
 
   return (
@@ -70,58 +56,54 @@ export default function HomeScreen() {
         <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.newNoteBtn} onPress={() => router.push('/(tabs)/notes')}>
             <FontAwesome name="plus" size={18} color="#fff" />
-            <Text style={styles.newNoteBtnText}>New Note</Text>
+            <Text style={styles.newNoteBtnText}>New Book</Text>
           </TouchableOpacity>
         </View>
         <Text style={styles.sectionTitle}>Recently Used</Text>
         <View style={styles.notesGrid}>
-          {recentlyUsed.length === 0 && <Text style={styles.emptyText}>No recent notes.</Text>}
-          {recentlyUsed.map((note) => (
-            <TouchableOpacity key={note.id || note.title} onPress={() => handleOpenEditor(note)} style={[styles.noteCard, { backgroundColor: note.pinned ? '#E6F0FF' : '#FFF' }]}> 
-              <Text style={styles.noteTitle}>{note.title}</Text>
+          {recentlyUsed.length === 0 && <Text style={styles.emptyText}>No recent books.</Text>}
+          {recentlyUsed.map((book) => (
+            <TouchableOpacity key={book.id} onPress={() => handleOpenBook(book)} style={styles.noteCard}> 
+              <Text style={styles.noteTitle} numberOfLines={2}>{book.title}</Text>
               <View style={styles.noteFooter}>
-                <FontAwesome name="clock-o" size={16} color="#222" style={{ marginRight: 4 }} />
-                <Text style={styles.noteTime}>{new Date(note.lastOpened).toLocaleString()}</Text>
-                <TouchableOpacity onPress={() => handlePin(note.id, note.pinned)} style={{ marginLeft: 8 }}>
-                  <FontAwesome name={note.pinned ? 'star' : 'star-o'} size={18} color={note.pinned ? '#FFD700' : '#888'} />
+                <TouchableOpacity onPress={() => handleToggleFavorite(book.id, book.favorited || false)} style={{ marginRight: 8 }}>
+                  <FontAwesome name={book.favorited ? 'star' : 'star-o'} size={18} color={book.favorited ? '#FFD700' : '#888'} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDelete(note.id)} style={{ marginLeft: 8 }}>
+                <TouchableOpacity onPress={() => handleDelete(book.id)}>
                   <FontAwesome name="trash" size={18} color="#FF7B7B" />
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
           ))}
         </View>
-        <Text style={styles.sectionTitle}>Frequently Used</Text>
+        <Text style={styles.sectionTitle}>Favourites</Text>
         <View style={styles.freqGrid}>
-          {frequentlyUsed.length === 0 && <Text style={styles.emptyText}>No frequent notes.</Text>}
-          {frequentlyUsed.map((note) => (
-            <TouchableOpacity key={note.id || note.title} onPress={() => handleOpenEditor(note)} style={[styles.freqCard, { backgroundColor: note.pinned ? '#E6F0FF' : '#FFF' }]}> 
-              <Text style={styles.freqTitle}>{note.title}</Text>
-              <Text style={styles.freqSubtitle}>Opened {note.openCount} times</Text>
+          {favoritedBooks.length === 0 && <Text style={styles.emptyText}>No favourited books.</Text>}
+          {favoritedBooks.map((book) => (
+            <TouchableOpacity key={book.id} onPress={() => handleOpenBook(book)} style={styles.freqCard}> 
+              <Text style={styles.freqTitle} numberOfLines={2}>{book.title}</Text>
               <View style={{ flexDirection: 'row', marginTop: 6 }}>
-                <TouchableOpacity onPress={() => handlePin(note.id, note.pinned)} style={{ marginRight: 12 }}>
-                  <FontAwesome name={note.pinned ? 'star' : 'star-o'} size={18} color={note.pinned ? '#FFD700' : '#888'} />
+                <TouchableOpacity onPress={() => handleToggleFavorite(book.id, book.favorited || false)} style={{ marginRight: 12 }}>
+                  <FontAwesome name={book.favorited ? 'star' : 'star-o'} size={18} color={book.favorited ? '#FFD700' : '#888'} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDelete(note.id)}>
+                <TouchableOpacity onPress={() => handleDelete(book.id)}>
                   <FontAwesome name="trash" size={18} color="#FF7B7B" />
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
           ))}
         </View>
-        <Text style={styles.sectionTitle}>All Notes</Text>
+        <Text style={styles.sectionTitle}>All Books</Text>
         <View style={styles.freqGrid}>
-          {allNotes.length === 0 && <Text style={styles.emptyText}>No notes yet.</Text>}
-          {allNotes.map((note) => (
-            <TouchableOpacity key={note.id || note.title} onPress={() => handleOpenEditor(note)} style={[styles.freqCard, { backgroundColor: note.pinned ? '#E6F0FF' : '#FFF' }]}> 
-              <Text style={styles.freqTitle}>{note.title}</Text>
-              <Text style={styles.freqSubtitle}>{note.category}</Text>
+          {allBooks.length === 0 && <Text style={styles.emptyText}>No books yet.</Text>}
+          {allBooks.map((book) => (
+            <TouchableOpacity key={book.id} onPress={() => handleOpenBook(book)} style={styles.freqCard}> 
+              <Text style={styles.freqTitle} numberOfLines={2}>{book.title}</Text>
               <View style={{ flexDirection: 'row', marginTop: 6 }}>
-                <TouchableOpacity onPress={() => handlePin(note.id, note.pinned)} style={{ marginRight: 12 }}>
-                  <FontAwesome name={note.pinned ? 'star' : 'star-o'} size={18} color={note.pinned ? '#FFD700' : '#888'} />
+                <TouchableOpacity onPress={() => handleToggleFavorite(book.id, book.favorited || false)} style={{ marginRight: 12 }}>
+                  <FontAwesome name={book.favorited ? 'star' : 'star-o'} size={18} color={book.favorited ? '#FFD700' : '#888'} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDelete(note.id)}>
+                <TouchableOpacity onPress={() => handleDelete(book.id)}>
                   <FontAwesome name="trash" size={18} color="#FF7B7B" />
                 </TouchableOpacity>
               </View>
@@ -129,17 +111,6 @@ export default function HomeScreen() {
           ))}
         </View>
       </ScrollView>
-      <NoteEditor
-        visible={editorVisible}
-        onClose={() => { setEditorVisible(false); setEditingNote(null); }}
-        onSave={handleSave}
-        initialNote={editingNote ? {
-          title: editingNote.title,
-          content: editingNote.content,
-          category: editingNote.category,
-          pinned: editingNote.pinned,
-        } : undefined}
-      />
     </SafeAreaView>
   );
 }
@@ -206,11 +177,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     minHeight: 120,
     justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: '#F7F8FA',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   noteTitle: {
     fontSize: 18,
@@ -241,11 +210,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     minHeight: 80,
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 4,
-    elevation: 1,
+    backgroundColor: '#F7F8FA',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   freqTitle: {
     fontSize: 16,
