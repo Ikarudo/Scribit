@@ -288,6 +288,10 @@ export default function NotesScreen() {
           activeOpacity={1}
         />
       )}
+
+      <View style={styles.logoContainer}>
+        <Image source={require('../../assets/images/Scribit Logo.png')} style={styles.logo} resizeMode="contain" />
+      </View>
       
       {/* Header: Book dropdown, add book, logo */}
       <View style={styles.headerRow}>
@@ -324,7 +328,7 @@ export default function NotesScreen() {
                             <FontAwesome name="check" size={16} color="#7B61FF" />
                           </TouchableOpacity>
                           <TouchableOpacity onPress={handleCancelBookRename} style={styles.bookEditBtn}>
-                            <FontAwesome name="times" size={16} color="#FF6B6B" />
+                            <FontAwesome name="times" size={16} color="#a41010ff" />
                           </TouchableOpacity>
                         </View>
                       ) : (
@@ -365,7 +369,7 @@ export default function NotesScreen() {
                               delayLongPress={500}
                               style={styles.dropdownActionBtn}
                             >
-                              <FontAwesome name="trash" size={18} color="#FF6B6B" />
+                              <FontAwesome name="trash" size={18} color="#be1f1fff" />
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -377,7 +381,6 @@ export default function NotesScreen() {
             </View>
           )}
         </View>
-        <Image source={require('../../assets/images/Scribit Logo.png')} style={styles.logo} resizeMode="contain" />
         {/* Add Book */}
         <TouchableOpacity onPress={() => setShowBookModal(true)}>
           <FontAwesome name="plus" size={28} color="#222" />
@@ -408,17 +411,7 @@ export default function NotesScreen() {
       </Modal>
 
       
-      {/* Toolbar */}
-      <ScrollView horizontal contentContainerStyle={styles.toolbarRow} showsHorizontalScrollIndicator={false}>
-        <TouchableOpacity style={[styles.toolBtn, styles.toolBtnActive]}> {/* Text is default and active */}
-          <FontAwesome name="font" size={28} color="#fff" />
-          <Text style={[styles.toolLabel, { color: '#7B61FF' }]}>Text</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.toolBtn}>
-          <FontAwesome name="image" size={28} color="#888" />
-          <Text style={styles.toolLabel}>Image</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      {/* The Toolbar Section (containing the 'A' and 'Image' buttons) was removed from here. */}
 
 
       {/* Pages List for Book */}
@@ -508,132 +501,157 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  logoContainer: {
+    alignItems: 'center',
+    paddingVertical: 0,
+    backgroundColor: '#fff',
+  },
+  logo: {
+    width: 115,
+    height: 85,
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 10,
-    marginBottom: 8,
+    paddingBottom: 0,
   },
   bookDropdownContainer: {
     flex: 1,
-    marginHorizontal: 8,
-    marginLeft: 0, // Remove left margin since burger menu is gone
-    position: 'relative', // Add relative positioning for dropdown
+    marginRight: 12,
+    position: 'relative',
   },
   bookDropdown: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#F7F8FA',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 52,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#222',
+    flex: 1,
   },
-  logo: {
-    width: 50,
-    height: 32,
-    marginHorizontal: 8,
-  },
-  toolbarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    marginBottom: 8,
-    marginTop: 2,
-  },
-  toolBtn: {
-    alignItems: 'center',
-    marginHorizontal: 4,
-    padding: 6,
-    borderRadius: 24,
-    opacity: 0.7,
-  },
-  toolBtnActive: {
+  addBookBtn: {
     backgroundColor: '#7B61FF',
-    opacity: 1,
+    borderRadius: 26,
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#7B61FF',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
   },
+  // Removed toolbarContainer and toolbarRow styles
+  // toolBtn and toolBtnActive styles are no longer used for the main screen layout
   toolLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#888',
-    marginTop: 2,
+    marginTop: 5,
+    fontWeight: '600',
   },
   pagesSection: {
     backgroundColor: '#F7F8FA',
-    borderRadius: 12,
-    margin: 12,
-    padding: 10,
-    marginTop: 8,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    // CHANGED: Removed extra top margin to bring it right under the books dropdown
+    marginTop: 8, 
+    padding: 14,
   },
   pagesHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 0,
   },
   pagesTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: 'bold',
     color: '#222',
   },
+  addPageBtn: {
+    backgroundColor: '#7B61FF',
+    borderRadius: 18,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   pageBtn: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginRight: 8,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginRight: 10,
     backgroundColor: '#fff',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   pageBtnActive: {
     borderColor: '#7B61FF',
-    backgroundColor: '#F0EDFF',
+    backgroundColor: '#ffffffff',
+    shadowColor: '#7B61FF',
+    color: '#ffffffff',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
   },
   pageBtnLongPressed: {
-    borderColor: '#FF6B6B', // Red border for long press
-    backgroundColor: '#FFE0E0', // Light red background for long press
+    borderColor: '#d00000ff',
+    backgroundColor: '#bb0d0dff',
   },
   pageBtnText: {
     fontSize: 15,
-    color: '#222',
+    color: '#000000ff',
+    fontWeight: '500',
   },
   emptyPagesContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 24,
   },
   emptyPagesText: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#888',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   quickAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E0E0E0',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    backgroundColor: '#F0EDFF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    minHeight: 58,
   },
   quickAddText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#7B61FF',
     marginLeft: 8,
+    fontWeight: '600',
   },
   noteArea: {
     backgroundColor: '#fff',
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#E0E0E0',
     marginHorizontal: 16,
-    marginTop: 8,
-    minHeight: 220,
-    padding: 18,
-    marginBottom: 18,
+    // ADJUSTED: Reduced margin top for tighter spacing
+    marginTop: 8, 
+    // ADDED: flex: 1 to make the note area fill the remaining space vertically
+    flex: 1, 
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowOffset: { width: 0, height: 2 },
@@ -643,16 +661,24 @@ const styles = StyleSheet.create({
   noteInput: {
     fontSize: 17,
     color: '#222',
-    minHeight: 120,
+    flex: 1,
     textAlignVertical: 'top',
+    lineHeight: 24,
   },
   savePageBtn: {
     backgroundColor: '#7B61FF',
-    borderRadius: 8,
+    borderRadius: 12,
     alignSelf: 'flex-end',
     marginTop: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    minWidth: 100,
+    alignItems: 'center',
+    shadowColor: '#7B61FF',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
   },
   savePageBtnText: {
     color: '#fff',
@@ -661,171 +687,98 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.15)',
+    backgroundColor: 'rgba(0,0,0,0.25)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
     width: '90%',
     backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 20,
+    borderRadius: 20,
+    padding: 24,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 5,
   },
   modalTitle: {
     fontWeight: 'bold',
-    fontSize: 18,
-    marginBottom: 12,
+    fontSize: 20,
+    marginBottom: 16,
     color: '#222',
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#E0E0E0',
-    borderRadius: 10,
-    padding: 10,
+    borderRadius: 12,
+    padding: 14,
     fontSize: 16,
-    marginBottom: 12,
+    marginBottom: 8,
     backgroundColor: '#FAFAFA',
     color: '#222',
+    minHeight: 52,
   },
   cancelBtn: {
-    marginRight: 18,
+    marginRight: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
   },
   cancelText: {
     color: '#888',
     fontSize: 16,
+    fontWeight: '500',
   },
   saveBtn: {
     backgroundColor: '#7B61FF',
-    borderRadius: 8,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
+    borderRadius: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    minWidth: 80,
+    alignItems: 'center',
+    shadowColor: '#7B61FF',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
   },
   saveText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
   },
-  bookManagementContent: {
-    width: '90%',
-    maxHeight: '80%',
-  },
-  bookManagementHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  modalHeaderActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  refreshBtn: {
-    marginRight: 10,
-  },
-  bookList: {
-    flex: 1,
-  },
-  bookItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  bookRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flex: 1,
-  },
-  bookNameContainer: {
-    flex: 1,
-    marginRight: 10,
-  },
-  bookName: {
-    fontSize: 16,
-    color: '#222',
-  },
-  selectedBookName: {
-    fontWeight: 'bold',
-    color: '#7B61FF',
-  },
-  bookActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  bookActionBtn: {
-    marginLeft: 15,
-  },
-  bookEditRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  bookEditInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 16,
-    marginRight: 10,
-    backgroundColor: '#FAFAFA',
-    color: '#222',
-  },
-  bookEditBtn: {
-    padding: 5,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#888',
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
-  debugText: {
-    fontSize: 12,
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 10,
-  },
   dropdownMenu: {
     position: 'absolute',
-    top: '100%', // Position below the dropdown button
+    top: '100%',
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E0E0E0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    zIndex: 1000, // Ensure it's above other content
-    marginTop: 4, // Add some spacing from the button
-    maxHeight: 300, // Increased height for better visibility
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 1000,
+    marginTop: 8,
+    maxHeight: 320,
   },
   dropdownList: {
-    maxHeight: 280, // Increased height for better visibility
+    maxHeight: 300,
   },
   dropdownItem: {
-    paddingVertical: 16, // Increased padding for better touch targets
-    paddingHorizontal: 20, // Increased padding for better touch targets
-    fontSize: 18, // Increased font size for better readability
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    fontSize: 17,
     color: '#222',
   },
   dropdownBookItem: {
-    paddingVertical: 16, // Increased padding for better touch targets
-    paddingHorizontal: 20, // Increased padding for better touch targets
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#F0F0F0',
   },
   dropdownBookRow: {
     flexDirection: 'row',
@@ -834,11 +787,13 @@ const styles = StyleSheet.create({
   },
   dropdownBookName: {
     flex: 1,
-    marginRight: 15, // Increased margin for better spacing
+    marginRight: 12,
+    paddingVertical: 4,
   },
   dropdownBookText: {
-    fontSize: 18, // Increased font size for better readability
+    fontSize: 17,
     color: '#222',
+    fontWeight: '500',
   },
   selectedBookText: {
     fontWeight: 'bold',
@@ -849,8 +804,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dropdownActionBtn: {
-    marginLeft: 15, // Increased margin for better touch targets
-    padding: 8, // Added padding for better touch targets
+    marginLeft: 8,
+    padding: 10,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bookEditInput: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+    marginRight: 10,
+    backgroundColor: '#FAFAFA',
+    color: '#222',
+    minHeight: 48,
+  },
+  bookEditBtn: {
+    padding: 10,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dropdownOverlay: {
     position: 'absolute',
@@ -859,6 +841,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'transparent',
-    zIndex: 9, // Ensure it's below the dropdown but above other content
+    zIndex: 999,
   },
 });

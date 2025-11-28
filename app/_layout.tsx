@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { NotesProvider } from '@/components/NotesProvider';
+import { CalendarProvider } from '@/components/CalendarProvider';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -45,7 +46,9 @@ export default function RootLayout() {
 
   return (
     <NotesProvider>
-      <RootLayoutNav />
+      <CalendarProvider>
+        <RootLayoutNav />
+      </CalendarProvider>
     </NotesProvider>
   );
 }
