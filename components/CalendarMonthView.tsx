@@ -101,7 +101,8 @@ export default function CalendarMonthView({ year, month, events, onDatePress }: 
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
+    maxHeight: 300,
+    backgroundColor: '#ffffffff',
     borderRadius: 12,
     padding: 12,
     marginHorizontal: 16,
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   eventDot: {
-    width: 6,
+    width: 12,
     height: 6,
     borderRadius: 3,
     marginHorizontal: 1,
