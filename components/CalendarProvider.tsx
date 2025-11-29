@@ -27,7 +27,7 @@ export type EventOccurrence = {
 interface CalendarContextType {
   events: CalendarEvent[];
   loading: boolean;
-  createEvent: (event: Omit<CalendarEvent, 'id' | 'createdAt'>) => Promise<void>;
+  createEvent: (event: Omit<CalendarEvent, 'id' | 'createdAt'>) => Promise<string>; // Returns event ID
   updateEvent: (id: string, updates: Partial<CalendarEvent>) => Promise<void>;
   deleteEvent: (id: string) => Promise<void>;
   getEventsForMonth: (year: number, month: number) => EventOccurrence[];
@@ -79,7 +79,7 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // CRUD for events
-  const createEvent = async (eventData: Omit<CalendarEvent, 'id' | 'createdAt'>) => {
+  const createEvent = async (eventData: Omit<CalendarEvent, 'id' | 'createdAt'>): Promise<string> => {
     const id = generateId();
     const newEvent: CalendarEvent = {
       id,
@@ -92,6 +92,7 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
     setEvents(updatedEvents);
     await AsyncStorage.setItem(EVENTS_KEY, JSON.stringify(updatedEvents));
     console.log('CalendarProvider: Event created');
+    return id;
   };
 
   const updateEvent = async (id: string, updates: Partial<CalendarEvent>) => {

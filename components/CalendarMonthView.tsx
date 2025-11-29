@@ -44,7 +44,7 @@ export default function CalendarMonthView({ year, month, events, onDatePress }: 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.monthYear}>{MONTHS[month]} {year}</Text>
+        <Text style={styles.monthYear}>{MONTHS[month] || 'Unknown'} {String(year)}</Text>
       </View>
       
       {/* Days of week header */}
@@ -74,10 +74,10 @@ export default function CalendarMonthView({ year, month, events, onDatePress }: 
           return (
             <TouchableOpacity
               key={index}
-              style={[styles.dayCell, isToday && styles.todayCell]}
+              style={[styles.dayCell, isToday ? styles.todayCell : null]}
               onPress={() => onDatePress?.(new Date(year, month, day))}
             >
-              <Text style={[styles.dayNumber, isToday && styles.todayText]}>{day}</Text>
+              <Text style={[styles.dayNumber, isToday ? styles.todayText : null]}>{String(day)}</Text>
               {dateEvents.length > 0 && (
                 <View style={styles.eventsContainer}>
                   {dateEvents.slice(0, 3).map((occurrence) => (
@@ -87,7 +87,9 @@ export default function CalendarMonthView({ year, month, events, onDatePress }: 
                     />
                   ))}
                   {dateEvents.length > 3 && (
-                    <Text style={styles.moreEventsText}>+{dateEvents.length - 3}</Text>
+                    <Text style={styles.moreEventsText}>
+                      +{dateEvents.length - 3}
+                    </Text>
                   )}
                 </View>
               )}

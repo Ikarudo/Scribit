@@ -133,23 +133,37 @@ export default function CalendarScreen() {
     );
   };
 
-  // Format date for display
-  const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${months[date.getMonth()]} ${date.getDate()}`;
-  };
+  // Format date for display
+  const formatDate = (dateStr: string): string => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return '';
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[date.getMonth()];
+      const day = date.getDate();
+      if (!month || !day) return '';
+      return `${month} ${day}`;
+    } catch (error) {
+      return '';
+    }
+  };
 
-  // Format time for display (convert 24-hour to 12-hour with AM/PM)
-  const formatTime = (time24: string): string => {
-    if (!time24 || !time24.includes(':')) {
-      return '12:00 AM';
-    }
-    const [hours, minutes] = time24.split(':').map(Number);
-    const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    return `${hour12}:${String(minutes).padStart(2, '0')} ${ampm}`;
-  };
+  // Format time for display (convert 24-hour to 12-hour with AM/PM)
+  const formatTime = (time24: string): string => {
+    if (!time24 || !time24.includes(':')) {
+      return '12:00 AM';
+    }
+    try {
+      const [hours, minutes] = time24.split(':').map(Number);
+      if (isNaN(hours) || isNaN(minutes)) return '12:00 AM';
+      const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      return `${hour12}:${String(minutes).padStart(2, '0')} ${ampm}`;
+    } catch (error) {
+      return '12:00 AM';
+    }
+  };
 
   if (loading) {
     return (
@@ -197,22 +211,22 @@ export default function CalendarScreen() {
 
         {/* View Mode Toggle - Moved closer to calendar (marginTop: 0) */}
         <View style={styles.toggleContainer}>
-          <TouchableOpacity
-            style={[styles.toggleButton, viewMode === 'month' && styles.toggleButtonActive]}
-            onPress={() => setViewMode('month')}
-          >
-            <Text style={[styles.toggleText, viewMode === 'month' && styles.toggleTextActive]}>
-              This Month
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleButton, viewMode === 'day' && styles.toggleButtonActive]}
-            onPress={() => setViewMode('day')}
-          >
-            <Text style={[styles.toggleText, viewMode === 'day' && styles.toggleTextActive]}>
-              Today
-            </Text>
-          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleButton, viewMode === 'month' ? styles.toggleButtonActive : null]}
+            onPress={() => setViewMode('month')}
+          >
+            <Text style={[styles.toggleText, viewMode === 'month' ? styles.toggleTextActive : null]}>
+              This Month
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleButton, viewMode === 'day' ? styles.toggleButtonActive : null]}
+            onPress={() => setViewMode('day')}
+          >
+            <Text style={[styles.toggleText, viewMode === 'day' ? styles.toggleTextActive : null]}>
+              Today
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Events List - Moved closer to the toggle module */}
@@ -226,9 +240,9 @@ export default function CalendarScreen() {
                     style={styles.groupHeader}
                     onPress={() => toggleGroup(eventType)}
                   >
-                    <Text style={styles.groupTitle}>{eventType}</Text>
-                    <View style={styles.groupHeaderRight}>
-                      <Text style={styles.groupCount}>{occurrences.length}</Text>
+                    <Text style={styles.groupTitle}>{String(eventType || 'Other')}</Text>
+                    <View style={styles.groupHeaderRight}>
+                      <Text style={styles.groupCount}>{String(occurrences.length)}</Text>
                       <FontAwesome
                         name={isCollapsed ? 'chevron-down' : 'chevron-up'}
                         size={16}
@@ -247,25 +261,25 @@ export default function CalendarScreen() {
                         >
                           <View style={[styles.eventColorBar, { backgroundColor: occurrence.event.color }]} />
                           <View style={styles.eventContent}>
-                            <View style={styles.eventHeader}>
-                              <Text style={styles.eventTitle}>{occurrence.event.title}</Text>
-                            </View>
-                            <View style={styles.eventDetails}>
-                              {viewMode === 'month' && (
-                                <>
-                                  <FontAwesome name="calendar" size={12} color="#888" />
-                                  <Text style={styles.eventDetailText}>{formatDate(occurrence.occurrenceDate)}</Text>
-                                </>
-                              )}
-                              <FontAwesome name="clock-o" size={12} color="#888" style={{ marginLeft: viewMode === 'month' ? 12 : 0 }} />
-                              <Text style={styles.eventDetailText}>{formatTime(occurrence.event.time)}</Text>
-                              {occurrence.event.repeat !== 'None' && (
-                                <>
-                                  <FontAwesome name="repeat" size={12} color="#888" style={{ marginLeft: 12 }} />
-                                  <Text style={styles.eventDetailText}>{occurrence.event.repeat}</Text>
-                                </>
-                              )}
-                            </View>
+                            <View style={styles.eventHeader}>
+                              <Text style={styles.eventTitle}>{String(occurrence.event.title || 'Untitled Event')}</Text>
+                            </View>
+                            <View style={styles.eventDetails}>
+                              {viewMode === 'month' && (
+                                <>
+                                  <FontAwesome name="calendar" size={12} color="#888" />
+                                  <Text style={styles.eventDetailText}>{String(formatDate(occurrence.occurrenceDate) || 'Invalid Date')}</Text>
+                                </>
+                              )}
+                              <FontAwesome name="clock-o" size={12} color="#888" style={{ marginLeft: viewMode === 'month' ? 12 : 0 }} />
+                              <Text style={styles.eventDetailText}>{String(formatTime(occurrence.event.time) || '12:00 AM')}</Text>
+                              {occurrence.event.repeat !== 'None' && occurrence.event.repeat && (
+                                <>
+                                  <FontAwesome name="repeat" size={12} color="#888" style={{ marginLeft: 12 }} />
+                                  <Text style={styles.eventDetailText}>{String(occurrence.event.repeat)}</Text>
+                                </>
+                              )}
+                            </View>
                           </View>
                         </TouchableOpacity>
                       ))}
