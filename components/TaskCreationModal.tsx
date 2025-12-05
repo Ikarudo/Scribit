@@ -19,7 +19,7 @@ const PRIORITY_OPTIONS: TaskPriority[] = ['High', 'Medium', 'Low'];
 type TaskCreationModalProps = {
   visible: boolean;
   onClose: () => void;
-  onSave: (task: Omit<Task, 'id' | 'createdAt'>) => void;
+  onSave: (task: Omit<Task, 'id' | 'createdAt'>, options?: { createReminder?: boolean }) => void;
   onDelete?: (taskId: string) => void;
   initialTask?: Task;
 };
@@ -39,6 +39,7 @@ export default function TaskCreationModal({
   const [dueTime, setDueTime] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [addReminder, setAddReminder] = useState(false);
 
   // Update state when modal opens or initialTask changes
   useEffect(() => {
@@ -57,6 +58,7 @@ export default function TaskCreationModal({
         setCompleted(false);
         setDueDate('');
         setDueTime('');
+        setAddReminder(false);
       }
     }
   }, [visible, initialTask]);
@@ -81,15 +83,18 @@ export default function TaskCreationModal({
       }
     }
 
-    onSave({
-      name: name.trim(),
-      description: description.trim() || undefined,
-      priority,
-      completed,
-      dueDate: dueDate.trim() || undefined,
-      dueTime: dueTime.trim() || undefined,
-      calendarEventId: initialTask?.calendarEventId,
-    });
+    onSave(
+      {
+        name: name.trim(),
+        description: description.trim() || undefined,
+        priority,
+        completed,
+        dueDate: dueDate.trim() || undefined,
+        dueTime: dueTime.trim() || undefined,
+        calendarEventId: initialTask?.calendarEventId,
+      },
+      { createReminder: addReminder }
+    );
 
     onClose();
   };
@@ -260,6 +265,19 @@ export default function TaskCreationModal({
               </TouchableOpacity>
               <Text style={styles.checkboxLabel}>Mark as completed</Text>
             </View>
+
+            {/* Add Reminder Option */}
+            {dueDate && (
+              <View style={styles.checkboxContainer}>
+                <TouchableOpacity
+                  style={styles.checkbox}
+                  onPress={() => setAddReminder(!addReminder)}
+                >
+                  {addReminder && <Text style={styles.checkmark}>✓</Text>}
+                </TouchableOpacity>
+                <Text style={styles.checkboxLabel}>Add reminder for this task</Text>
+              </View>
+            )}
           </ScrollView>
 
           {/* Actions */}

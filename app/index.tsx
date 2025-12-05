@@ -1,12 +1,14 @@
 import {View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Modal, Pressable} from 'react-native';
 import React from 'react';
 import {auth} from '../FirebaseConfig';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, User } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useAuth } from '@/components/useAuth';
+import { useUserProfile } from '@/components/UserProfileProvider';
 
 const index = () => {
-    const router = useRouter();
+    const { loading, user } = useAuth();
+    const { createProfile } = useUserProfile();
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
     const [showPassword, setShowPassword] = React.useState(false);
@@ -16,19 +18,6 @@ const index = () => {
     const [signUpPassword, setSignUpPassword] = React.useState('');
     const [signUpUsername, setSignUpUsername] = React.useState('');
     const [signUpShowPassword, setSignUpShowPassword] = React.useState(false);
-    const [user, setUser] = React.useState<User | null>(null);
-    const [loading, setLoading] = React.useState(true);
-
-    React.useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
-            setUser(user);
-            setLoading(false);
-            if (user) {
-                router.replace('/(tabs)/home');
-            }
-        });
-        return unsubscribe;
-    }, []);
 
     const signIn = async () => {
         try{
@@ -42,8 +31,11 @@ const index = () => {
 
     const signUp = async () => {
         try{
-            // You may want to save the username to your database after account creation
-            await createUserWithEmailAndPassword(auth, signUpEmail, signUpPassword)
+            const userCredential = await createUserWithEmailAndPassword(auth, signUpEmail, signUpPassword);
+            // Save username to user profile
+            if (signUpUsername.trim()) {
+                await createProfile(userCredential.user, signUpUsername.trim());
+            }
             setShowSignUp(false);
             setSignUpEmail('');
             setSignUpPassword('');
@@ -57,10 +49,6 @@ const index = () => {
 
     if (loading) {
         return <SafeAreaView style={styles.container}><Text>Loading...</Text></SafeAreaView>;
-    }
-    if (user) {
-        // Optionally show a message or nothing while redirecting
-        return <SafeAreaView style={styles.container}><Text>Redirecting...</Text></SafeAreaView>;
     }
 
     return (

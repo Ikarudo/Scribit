@@ -4,8 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome, Feather } from '@expo/vector-icons';
 import { useNotes, Book } from '@/components/NotesProvider';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/components/useAuth';
 
 export default function HomeScreen() {
+  const { user, loading: authLoading } = useAuth();
   const { books, loading, toggleBookFavorite, deleteBook } = useNotes();
   const router = useRouter();
 
@@ -41,6 +43,16 @@ export default function HomeScreen() {
     });
   };
 
+  if (authLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Text>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
@@ -48,7 +60,7 @@ export default function HomeScreen() {
           <Feather name="menu" size={28} color="#222" />
         </TouchableOpacity>
         <Image source={require('../../assets/images/Scribit Logo.png')} style={styles.logo} resizeMode="contain" />
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/profile')}>
           <FontAwesome name="user-circle-o" size={28} color="#222" />
         </TouchableOpacity>
       </View>

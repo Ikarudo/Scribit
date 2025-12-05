@@ -10,6 +10,9 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { NotesProvider } from '@/components/NotesProvider';
 import { CalendarProvider } from '@/components/CalendarProvider';
 import { TasksProvider } from '@/components/TasksProvider';
+import { RemindersProvider } from '@/components/RemindersProvider';
+import { UserProfileProvider } from '@/components/UserProfileProvider';
+import { useAuth } from '@/components/useAuth';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -49,7 +52,9 @@ export default function RootLayout() {
     <NotesProvider>
       <CalendarProvider>
         <TasksProvider>
-          <RootLayoutNav />
+          <RemindersProvider>
+            <RootLayoutNav />
+          </RemindersProvider>
         </TasksProvider>
       </CalendarProvider>
     </NotesProvider>
@@ -58,14 +63,17 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  const { user } = useAuth();
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-      </Stack>
+      <UserProfileProvider user={user}>
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        </Stack>
+      </UserProfileProvider>
     </ThemeProvider>
   );
 }

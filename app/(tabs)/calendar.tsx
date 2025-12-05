@@ -5,11 +5,15 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useCalendar, CalendarEvent, EventOccurrence } from '@/components/CalendarProvider';
 import CalendarMonthView from '@/components/CalendarMonthView'; 
 import EventCreationModal from '@/components/EventCreationModal';
+import { useReminders } from '@/components/RemindersProvider';
+import { useAuth } from '@/components/useAuth';
 
 const { width } = Dimensions.get('window');
 
 export default function CalendarScreen() {
-  const { events, loading, createEvent, deleteEvent, getEventsForMonth } = useCalendar();
+  const { loading: authLoading } = useAuth();
+  const { events, loading, createEvent, deleteEvent, getEventsForMonth } = useCalendar();
+  const { createReminderForCalendarEvent } = useReminders();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -96,18 +100,22 @@ export default function CalendarScreen() {
 
   // Handle save event
   const handleSaveEvent = async (eventData: Omit<CalendarEvent, 'id' | 'createdAt'>) => {
-    try {
-      if (selectedEvent) {
-        // Update existing event
-        // Note: You might want to add an updateEvent function to the modal
-        await createEvent(eventData);
-      } else {
-        await createEvent(eventData);
-      }
-    } catch (error) {
+    try {
+      // For now, always create a new calendar event entry;
+      // you could enhance this later to call updateEvent when editing.
+      const id = await createEvent(eventData);
+      const fullEvent: CalendarEvent = {
+        ...eventData,
+        id,
+        createdAt: Date.now(),
+      };
+
+      // Automatically create a reminder for upcoming events
+      await createReminderForCalendarEvent(fullEvent);
+    } catch (error) {
       Alert.alert('Error', 'Failed to save event. Please try again.');
       console.error('Error saving event:', error);
-    }
+    }
   };
 
   // Handle delete event
@@ -165,15 +173,15 @@ export default function CalendarScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading calendar...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (authLoading || loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading calendar...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>

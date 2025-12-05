@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNotes, Book, Page } from '@/components/NotesProvider';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useAuth } from '@/components/useAuth';
 
 const paperStyles = [
   { label: 'Grid' },
@@ -13,6 +14,7 @@ const paperStyles = [
 ];
 
 export default function NotesScreen() {
+  const { loading: authLoading } = useAuth();
   const {
     books,
     pages,
@@ -278,6 +280,16 @@ export default function NotesScreen() {
   };
 
   // UI
+  if (authLoading || loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Text>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Touchable area to close dropdown when clicking outside */}

@@ -4,7 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTasks, Task, TaskPriority } from '@/components/TasksProvider';
 import { useCalendar } from '@/components/CalendarProvider';
+import { useReminders } from '@/components/RemindersProvider';
 import TaskCreationModal from '@/components/TaskCreationModal';
+import { useAuth } from '@/components/useAuth';
 
 const PRIORITY_ORDER: TaskPriority[] = ['High', 'Medium', 'Low'];
 const PRIORITY_COLORS = {
@@ -14,8 +16,10 @@ const PRIORITY_COLORS = {
 };
 
 export default function TasksScreen() {
+  const { loading: authLoading } = useAuth();
   const { tasks, loading, createTask, updateTask, deleteTask, toggleTaskComplete } = useTasks();
   const { createEvent, deleteEvent } = useCalendar();
+  const { createReminderForTask } = useReminders();
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | undefined>(undefined);
 
@@ -115,8 +119,14 @@ export default function TasksScreen() {
   };
 
   // Handle save task
-  const handleSaveTask = async (taskData: Omit<Task, 'id' | 'createdAt'>) => {
+  const handleSaveTask = async (
+    taskData: Omit<Task, 'id' | 'createdAt'>,
+    options?: { createReminder?: boolean }
+  ) => {
     try {
+      const shouldCreateReminder =
+        !!options?.createReminder && !!taskData.dueDate && !!taskData.dueTime;
+
       if (selectedTask) {
         // If updating and calendar event exists, delete old one first
         if (selectedTask.calendarEventId) {
@@ -147,6 +157,14 @@ export default function TasksScreen() {
         }
 
         await updateTask(selectedTask.id, { ...taskData, calendarEventId });
+
+        if (shouldCreateReminder) {
+          await createReminderForTask({
+            ...selectedTask,
+            ...taskData,
+            calendarEventId,
+          });
+        }
       } else {
         // Create new task
         let calendarEventId = undefined;
@@ -169,6 +187,22 @@ export default function TasksScreen() {
         }
 
         await createTask({ ...taskData, calendarEventId });
+
+        if (shouldCreateReminder) {
+          // We don't have the generated id here, so refresh from tasks state is needed
+          // Instead, just let the reminder be tied by title/date/time without sourceId.
+          await createReminderForTask({
+            id: 'temp',
+            name: taskData.name,
+            description: taskData.description,
+            priority: taskData.priority,
+            completed: taskData.completed,
+            dueDate: taskData.dueDate,
+            dueTime: taskData.dueTime,
+            createdAt: Date.now(),
+            calendarEventId,
+          });
+        }
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to save task. Please try again.');
@@ -242,7 +276,7 @@ export default function TasksScreen() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
