@@ -27,37 +27,38 @@ export default function CalendarScreen() {
   // Get events for current month (returns occurrences)
   const monthEventOccurrences = getEventsForMonth(currentYear, currentMonth);
 
-  // Get events for today
-  const getEventsForToday = (): EventOccurrence[] => {
-    const today = new Date();
-    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    return monthEventOccurrences.filter(occurrence => occurrence.occurrenceDate === dateStr);
-  };
+  // Get events for today
+  const getEventsForToday = (): EventOccurrence[] => {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return (monthEventOccurrences || []).filter(occurrence => occurrence && occurrence.occurrenceDate === dateStr);
+  };
 
-  // Get events based on view mode
-  const getDisplayEvents = (): EventOccurrence[] => {
-    if (viewMode === 'day') {
-      return getEventsForToday();
-    }
-    return monthEventOccurrences;
-  };
+  // Get events based on view mode
+  const getDisplayEvents = (): EventOccurrence[] => {
+    if (viewMode === 'day') {
+      return getEventsForToday();
+    }
+    return monthEventOccurrences || [];
+  };
 
-  // Sort occurrences by date and time
-  const sortedEvents = [...getDisplayEvents()].sort((a, b) => {
-    const dateCompare = a.occurrenceDate.localeCompare(b.occurrenceDate);
-    if (dateCompare !== 0) return dateCompare;
-    return a.event.time.localeCompare(b.event.time);
-  });
+  // Sort occurrences by date and time
+  const sortedEvents = [...getDisplayEvents()].filter(occurrence => occurrence && occurrence.event).sort((a, b) => {
+    const dateCompare = (a.occurrenceDate || '').localeCompare(b.occurrenceDate || '');
+    if (dateCompare !== 0) return dateCompare;
+    return (a.event.time || '').localeCompare(b.event.time || '');
+  });
 
-  // Group events by event type
-  const groupedEvents = sortedEvents.reduce((groups, occurrence) => {
-    const type = occurrence.event.eventType;
-    if (!groups[type]) {
-      groups[type] = [];
-    }
-    groups[type].push(occurrence);
-    return groups;
-  }, {} as Record<string, EventOccurrence[]>);
+  // Group events by event type
+  const groupedEvents = sortedEvents.reduce((groups, occurrence) => {
+    if (!occurrence || !occurrence.event) return groups;
+    const type = occurrence.event.eventType || 'Other';
+    if (!groups[type]) {
+      groups[type] = [];
+    }
+    groups[type].push(occurrence);
+    return groups;
+  }, {} as Record<string, EventOccurrence[]>);
 
   // Toggle group collapse
   const toggleGroup = (eventType: string) => {
@@ -248,9 +249,9 @@ export default function CalendarScreen() {
                     style={styles.groupHeader}
                     onPress={() => toggleGroup(eventType)}
                   >
-                    <Text style={styles.groupTitle}>{String(eventType || 'Other')}</Text>
+                    <Text style={styles.groupTitle}>{eventType || 'Other'}</Text>
                     <View style={styles.groupHeaderRight}>
-                      <Text style={styles.groupCount}>{String(occurrences.length)}</Text>
+                      <Text style={styles.groupCount}>{occurrences.length}</Text>
                       <FontAwesome
                         name={isCollapsed ? 'chevron-down' : 'chevron-up'}
                         size={16}
@@ -270,21 +271,21 @@ export default function CalendarScreen() {
                           <View style={[styles.eventColorBar, { backgroundColor: occurrence.event.color }]} />
                           <View style={styles.eventContent}>
                             <View style={styles.eventHeader}>
-                              <Text style={styles.eventTitle}>{String(occurrence.event.title || 'Untitled Event')}</Text>
+                              <Text style={styles.eventTitle}>{occurrence.event.title || 'Untitled Event'}</Text>
                             </View>
                             <View style={styles.eventDetails}>
                               {viewMode === 'month' && (
                                 <>
                                   <FontAwesome name="calendar" size={12} color="#888" />
-                                  <Text style={styles.eventDetailText}>{String(formatDate(occurrence.occurrenceDate) || 'Invalid Date')}</Text>
+                                  <Text style={styles.eventDetailText}>{formatDate(occurrence.occurrenceDate) || 'Invalid Date'}</Text>
                                 </>
                               )}
                               <FontAwesome name="clock-o" size={12} color="#888" style={{ marginLeft: viewMode === 'month' ? 12 : 0 }} />
-                              <Text style={styles.eventDetailText}>{String(formatTime(occurrence.event.time) || '12:00 AM')}</Text>
-                              {occurrence.event.repeat !== 'None' && occurrence.event.repeat && (
+                              <Text style={styles.eventDetailText}>{formatTime(occurrence.event.time) || '12:00 AM'}</Text>
+                              {occurrence.event.repeat && occurrence.event.repeat !== 'None' && (
                                 <>
                                   <FontAwesome name="repeat" size={12} color="#888" style={{ marginLeft: 12 }} />
-                                  <Text style={styles.eventDetailText}>{String(occurrence.event.repeat)}</Text>
+                                  <Text style={styles.eventDetailText}>{occurrence.event.repeat || ''}</Text>
                                 </>
                               )}
                             </View>

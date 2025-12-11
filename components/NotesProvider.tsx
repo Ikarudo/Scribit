@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../FirebaseConfig';
 import {
@@ -23,6 +23,7 @@ export type Book = {
   favorited?: boolean;
   lastOpened?: number;
   openCount?: number;
+  icon?: string; // Icon filename from assets/images
 };
 
 export type Page = {
@@ -42,7 +43,7 @@ interface NotesContextType {
   selectedBookId: string | null;
   setSelectedBookId: (id: string) => void;
   loading: boolean;
-  createBook: (title: string) => Promise<void>;
+  createBook: (title: string, icon?: string) => Promise<void>;
   updateBook: (id: string, updates: Partial<Book>) => Promise<void>;
   deleteBook: (id: string) => Promise<void>;
   createPage: (page: Partial<Page>) => Promise<void>;
@@ -79,6 +80,10 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [trackedBooks, setTrackedBooks] = useState<Set<string>>(new Set());
+  const deletedBookIdsRef = useRef<Set<string>>(new Set());
+  const deletedPageIdsRef = useRef<Set<string>>(new Set());
+  const recentlyUpdatedBooksRef = useRef<Map<string, number>>(new Map()); // Track recently updated books to prevent overwrite
+  const localBookStateRef = useRef<Map<string, Book>>(new Map()); // Track local book state to always prefer over remote
 
   // Load books and pages from Firestore and AsyncStorage
   useEffect(() => {
@@ -91,11 +96,17 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       const parsedLocalBooks = localBooks ? JSON.parse(localBooks) : [];
       const parsedLocalPages = localPages ? JSON.parse(localPages) : [];
       
+      // Ensure favorited is always a boolean
+      const normalizedBooks = parsedLocalBooks.map((book: Book) => ({
+        ...book,
+        favorited: book.favorited === true, // Explicitly set to boolean
+      }));
+      
       // Set initial state from local storage ONLY
-      setBooks(parsedLocalBooks);
+      setBooks(normalizedBooks);
       setPages(parsedLocalPages);
       
-      console.log('NotesProvider: Loaded local books:', parsedLocalBooks.length, parsedLocalBooks.map(b => ({ id: b.id, title: b.title })));
+      console.log('NotesProvider: Loaded local books:', parsedLocalBooks.length, parsedLocalBooks.map((b: Book) => ({ id: b.id, title: b.title })));
       
       // Set default selected book if not set
       if (!selectedBookId && parsedLocalBooks.length > 0) {
@@ -106,25 +117,90 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       const unsubBooks = onSnapshot(collection(db, 'books'), (snapshot) => {
         const remoteBooks: Book[] = [];
         snapshot.forEach(docSnap => {
-          remoteBooks.push({ id: docSnap.id, ...docSnap.data() } as Book);
+          const data = docSnap.data();
+          // Convert Firebase timestamps to numbers for local storage, handle invalid dates
+          let createdAt = Date.now();
+          if (data.createdAt) {
+            if (data.createdAt.toMillis) {
+              const millis = data.createdAt.toMillis();
+              // Validate date is within reasonable bounds
+              if (millis > 0 && millis < 4102444800000) { // Year 2100
+                createdAt = millis;
+              }
+            } else if (typeof data.createdAt === 'number' && data.createdAt > 0 && data.createdAt < 4102444800000) {
+              createdAt = data.createdAt;
+            }
+          }
+          
+          // Ensure favorited is always a boolean
+          remoteBooks.push({ 
+            id: docSnap.id, 
+            ...data,
+            favorited: data.favorited === true, // Explicitly set to boolean
+            createdAt,
+          } as Book);
         });
         
-        // Only add new books from Firebase that don't exist locally
-        const currentBooks = books.length > 0 ? books : parsedLocalBooks;
-        const newBooks = remoteBooks.filter(remoteBook => 
-          !currentBooks.find(localBook => localBook.id === remoteBook.id)
-        );
-        
-        if (newBooks.length > 0) {
-          const updatedBooks = [...currentBooks, ...newBooks];
-          setBooks(updatedBooks);
-          AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(updatedBooks));
-          console.log('NotesProvider: Added', newBooks.length, 'new books from Firebase');
-        }
-        // Only log if there are actually new books, not just updates
-        else if (remoteBooks.length > currentBooks.length) {
-          console.log('NotesProvider: Received remote books:', remoteBooks.length, remoteBooks.map(b => ({ id: b.id, title: b.title })));
-        }
+        // Get current books state and check deleted IDs from ref
+        setBooks(currentBooks => {
+          // CRITICAL: Always use currentBooks (the actual React state), never parsedLocalBooks
+          // This ensures we preserve any local state changes
+          const booksToUse = currentBooks.length > 0 ? currentBooks : parsedLocalBooks;
+          const deletedIds = deletedBookIdsRef.current;
+          const recentlyUpdated = recentlyUpdatedBooksRef.current;
+          const localState = localBookStateRef.current;
+          const now = Date.now();
+          
+          // Filter out books that were locally deleted (don't re-add them)
+          const validRemoteBooks = remoteBooks.filter(remoteBook => 
+            !deletedIds.has(remoteBook.id)
+          );
+          
+          // Find books that exist in Firebase but not locally (new books from other devices)
+          // AND are not in the deleted list
+          const newBooks = validRemoteBooks.filter(remoteBook => 
+            !booksToUse.find((localBook: Book) => localBook.id === remoteBook.id) &&
+            !deletedIds.has(remoteBook.id)
+          );
+          
+          // Start with local books - they are the source of truth
+          // Apply tracked local state first (most recent local changes)
+          let mergedBooks = booksToUse.map((localBook: Book) => {
+            if (localState.has(localBook.id)) {
+              const tracked = localState.get(localBook.id)!;
+              console.log('NotesProvider: Using tracked local state for book:', localBook.id, 'favorited:', tracked.favorited);
+              return tracked;
+            }
+            return localBook;
+          });
+          
+          // Only add truly new books from Firebase (don't overwrite existing local books)
+          if (newBooks.length > 0) {
+            mergedBooks = [...mergedBooks, ...newBooks];
+            AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(mergedBooks));
+            console.log('NotesProvider: Added', newBooks.length, 'new books from Firebase');
+          }
+          
+          // IMPORTANT: Don't update AsyncStorage here if we didn't add new books
+          // This prevents overwriting local changes with stale Firebase data
+          
+          // Clean up old entries from recentlyUpdated (older than 10 seconds)
+          const tenSecondsAgo = now - 10000;
+          recentlyUpdated.forEach((timestamp, bookId) => {
+            if (timestamp < tenSecondsAgo) {
+              recentlyUpdated.delete(bookId);
+            }
+          });
+          
+          // Only add truly new books from Firebase that weren't locally deleted
+          if (newBooks.length > 0) {
+            mergedBooks.push(...newBooks);
+            AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(mergedBooks));
+            console.log('NotesProvider: Added', newBooks.length, 'new books from Firebase');
+          }
+          
+          return mergedBooks;
+        });
       }, (error) => {
         console.error('Error loading books from Firestore:', error);
         // Keep local books if Firebase fails
@@ -135,21 +211,70 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       const unsubPages = onSnapshot(collection(db, 'pages'), (snapshot) => {
         const remotePages: Page[] = [];
         snapshot.forEach(docSnap => {
-          remotePages.push({ id: docSnap.id, ...docSnap.data() } as Page);
+          const data = docSnap.data();
+          // Convert Firebase timestamps to numbers for local storage, handle invalid dates
+          let createdAt = Date.now();
+          let lastOpened = Date.now();
+          
+          if (data.createdAt) {
+            if (data.createdAt.toMillis) {
+              const millis = data.createdAt.toMillis();
+              if (millis > 0 && millis < 4102444800000) {
+                createdAt = millis;
+              }
+            } else if (typeof data.createdAt === 'number' && data.createdAt > 0 && data.createdAt < 4102444800000) {
+              createdAt = data.createdAt;
+            }
+          }
+          
+          if (data.lastOpened) {
+            if (data.lastOpened.toMillis) {
+              const millis = data.lastOpened.toMillis();
+              if (millis > 0 && millis < 4102444800000) {
+                lastOpened = millis;
+              }
+            } else if (typeof data.lastOpened === 'number' && data.lastOpened > 0 && data.lastOpened < 4102444800000) {
+              lastOpened = data.lastOpened;
+            }
+          }
+          
+          remotePages.push({ 
+            id: docSnap.id, 
+            ...data,
+            createdAt,
+            lastOpened,
+          } as Page);
         });
         
-        // Only add new pages from Firebase that don't exist locally
-        const currentPages = pages.length > 0 ? pages : parsedLocalPages;
-        const newPages = remotePages.filter(remotePage => 
-          !currentPages.find(localPage => localPage.id === remotePage.id)
-        );
-        
-        if (newPages.length > 0) {
-          const updatedPages = [...currentPages, ...newPages];
-          setPages(updatedPages);
-          AsyncStorage.setItem(PAGES_KEY, JSON.stringify(updatedPages));
-          console.log('NotesProvider: Added', newPages.length, 'new pages from Firebase');
-        }
+        // Get current pages state and check deleted IDs from ref
+        setPages(currentPages => {
+          const pagesToUse = currentPages.length > 0 ? currentPages : parsedLocalPages;
+          const deletedIds = deletedPageIdsRef.current;
+          
+          // Filter out pages that were locally deleted (don't re-add them)
+          const validRemotePages = remotePages.filter(remotePage => 
+            !deletedIds.has(remotePage.id)
+          );
+          
+          // Find pages that exist in Firebase but not locally (new pages from other devices)
+          // AND are not in the deleted list
+          const newPages = validRemotePages.filter(remotePage => 
+            !pagesToUse.find((localPage: Page) => localPage.id === remotePage.id) &&
+            !deletedIds.has(remotePage.id)
+          );
+          
+          // Find pages that exist in both - keep local version (local is source of truth)
+          const mergedPages = [...pagesToUse];
+          
+          // Only add truly new pages from Firebase that weren't locally deleted
+          if (newPages.length > 0) {
+            mergedPages.push(...newPages);
+            AsyncStorage.setItem(PAGES_KEY, JSON.stringify(mergedPages));
+            console.log('NotesProvider: Added', newPages.length, 'new pages from Firebase');
+          }
+          
+          return mergedPages;
+        });
       }, (error) => {
         console.error('Error loading pages from Firestore:', error);
         // Keep local pages if Firebase fails
@@ -200,12 +325,13 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // CRUD for books
-  const createBook = async (title: string) => {
+  const createBook = async (title: string, icon?: string) => {
     const id = generateId();
     const newBook: Book = {
       id,
       title,
       createdAt: Date.now(),
+      icon: icon || 'BookType 1 -Blue.png', // Default icon
     };
     
     // Update local state immediately
@@ -229,24 +355,40 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
 
   const updateBook = async (id: string, updates: Partial<Book>) => {
     // Update local state immediately
-    const updatedBooks = books.map(book => 
-      book.id === id ? { ...book, ...updates } : book
-    );
+    const book = books.find(b => b.id === id);
+    if (!book) {
+      console.error('NotesProvider: Book not found for update:', id);
+      return;
+    }
+    
+    const updatedBook = { ...book, ...updates };
+    const updatedBooks = books.map(b => b.id === id ? updatedBook : b);
     setBooks(updatedBooks);
     await AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(updatedBooks));
     
-    // Then sync to Firebase
+    // Then sync to Firebase - use setDoc with merge to handle cases where document doesn't exist
     try {
       const ref = doc(db, 'books', id);
-      await updateDoc(ref, updates);
+      await setDoc(ref, {
+        ...updatedBook,
+        createdAt: book.createdAt ? new Date(book.createdAt) : serverTimestamp(),
+      }, { merge: true });
       console.log('NotesProvider: Book updated and synced to Firebase');
     } catch (error) {
       console.error('Error syncing book update to Firebase:', error);
+      // Don't throw - local update is already done
     }
   };
 
   const deleteBook = async (id: string) => {
-    // Update local state immediately
+    // Mark as deleted immediately to prevent re-adding from Firebase
+    deletedBookIdsRef.current.add(id);
+    
+    // Get all page IDs for this book to mark them as deleted too
+    const pageIdsToDelete = pages.filter(page => page.bookId === id).map(page => page.id);
+    pageIdsToDelete.forEach(pageId => deletedPageIdsRef.current.add(pageId));
+    
+    // Update local state immediately - save to AsyncStorage first
     const updatedBooks = books.filter(book => book.id !== id);
     const updatedPages = pages.filter(page => page.bookId !== id);
     setBooks(updatedBooks);
@@ -254,24 +396,37 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
     await AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(updatedBooks));
     await AsyncStorage.setItem(PAGES_KEY, JSON.stringify(updatedPages));
     
-    // Then sync to Firebase
+    // Then sync to Firebase - handle cases where documents might not exist
     try {
-      // Delete all pages in this book
+      // Delete all pages in this book from Firebase
       const q = query(collection(db, 'pages'), where('bookId', '==', id));
       const snapshot = await getDocs(q);
-      for (const docSnap of snapshot.docs) {
-        await deleteDoc(doc(db, 'pages', docSnap.id));
-      }
-      // Delete the book
-      await deleteDoc(doc(db, 'books', id));
+      const deletePagePromises = snapshot.docs.map(docSnap => 
+        deleteDoc(doc(db, 'pages', docSnap.id)).catch(err => {
+          // If page doesn't exist in Firebase, that's okay - it's already deleted locally
+          console.log('NotesProvider: Page not found in Firebase (already deleted):', docSnap.id);
+        })
+      );
+      await Promise.all(deletePagePromises);
+      
+      // Delete the book from Firebase
+      const bookRef = doc(db, 'books', id);
+      await deleteDoc(bookRef).catch(err => {
+        // If book doesn't exist in Firebase, that's okay - it's already deleted locally
+        console.log('NotesProvider: Book not found in Firebase (already deleted):', id);
+      });
+      
       console.log('NotesProvider: Book deleted and synced to Firebase');
     } catch (error) {
       console.error('Error syncing book deletion to Firebase:', error);
+      // Don't throw - local deletion is already done
     }
     
     // If the deleted book was selected, select another
     if (selectedBookId === id && updatedBooks.length > 0) {
       setSelectedBookId(updatedBooks[0].id);
+    } else if (selectedBookId === id) {
+      setSelectedBookId(null);
     }
   };
 
@@ -318,35 +473,51 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       console.log('Updating page:', id, 'with updates:', updates);
       
       // Update local state immediately
-      const updatedPages = pages.map(page => 
-        page.id === id ? { ...page, ...updates } : page
-      );
+      const page = pages.find(p => p.id === id);
+      if (!page) {
+        console.error('NotesProvider: Page not found for update:', id);
+        return;
+      }
+      
+      const updatedPage = { ...page, ...updates };
+      const updatedPages = pages.map(p => p.id === id ? updatedPage : p);
       setPages(updatedPages);
       await AsyncStorage.setItem(PAGES_KEY, JSON.stringify(updatedPages));
       
-      // Then sync to Firebase
+      // Then sync to Firebase - use setDoc with merge to handle cases where document doesn't exist
       const ref = doc(db, 'pages', id);
-      await updateDoc(ref, updates);
+      await setDoc(ref, {
+        ...updatedPage,
+        createdAt: page.createdAt ? new Date(page.createdAt) : serverTimestamp(),
+        lastOpened: updates.lastOpened ? new Date(updates.lastOpened as number) : (page.lastOpened ? new Date(page.lastOpened) : serverTimestamp()),
+      }, { merge: true });
       console.log('Page updated successfully and synced to Firebase');
     } catch (error) {
       console.error('Error updating page:', error);
-      throw error;
+      // Don't throw - local update is already done
     }
   };
 
   const deletePage = async (id: string) => {
-    // Update local state immediately
+    // Mark as deleted immediately to prevent re-adding from Firebase
+    deletedPageIdsRef.current.add(id);
+    
+    // Update local state immediately - save to AsyncStorage first
     const updatedPages = pages.filter(page => page.id !== id);
     setPages(updatedPages);
     await AsyncStorage.setItem(PAGES_KEY, JSON.stringify(updatedPages));
     
-    // Then sync to Firebase
+    // Then sync to Firebase - handle cases where document might not exist
     try {
       const ref = doc(db, 'pages', id);
-      await deleteDoc(ref);
+      await deleteDoc(ref).catch(err => {
+        // If page doesn't exist in Firebase, that's okay - it's already deleted locally
+        console.log('NotesProvider: Page not found in Firebase (already deleted):', id);
+      });
       console.log('Page deleted and synced to Firebase');
     } catch (error) {
       console.error('Error syncing page deletion to Firebase:', error);
+      // Don't throw - local deletion is already done
     }
   };
 
@@ -355,19 +526,81 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const toggleBookFavorite = async (id: string, favorited: boolean) => {
-    // Update local state immediately
-    const updatedBooks = books.map(book => 
-      book.id === id ? { ...book, favorited: !favorited } : book
-    );
-    setBooks(updatedBooks);
-    await AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(updatedBooks));
+    const newFavoritedValue = !favorited;
+    console.log('NotesProvider: Toggling favorite for book:', id, 'from', favorited, 'to', newFavoritedValue);
     
-    // Then sync to Firebase
+    // Mark this book as recently updated to prevent onSnapshot from overwriting
+    const now = Date.now();
+    recentlyUpdatedBooksRef.current.set(id, now);
+    
+    // Update local state immediately using functional update to ensure we have latest state
+    setBooks(currentBooks => {
+      const book = currentBooks.find(b => b.id === id);
+      if (!book) {
+        console.error('NotesProvider: Book not found for favorite toggle:', id);
+        return currentBooks;
+      }
+      
+      const updatedBook = { ...book, favorited: newFavoritedValue };
+      
+      // Track this local state change FIRST so onSnapshot always uses it (before state update)
+      localBookStateRef.current.set(id, updatedBook);
+      
+      // Create a completely new array with new object references to ensure React detects the change
+      const updatedBooks = currentBooks.map(b => {
+        if (b.id === id) {
+          // Create a completely new object for the updated book
+          return { ...b, favorited: newFavoritedValue };
+        }
+        // Return existing book (React will optimize this)
+        return b;
+      });
+      
+      // Save to AsyncStorage
+      AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(updatedBooks)).catch(err => {
+        console.error('Error saving to AsyncStorage:', err);
+      });
+      
+      const foundBook = updatedBooks.find(b => b.id === id);
+      console.log('NotesProvider: Updated local state, book favorited:', foundBook?.favorited, 'Total books:', updatedBooks.length);
+      console.log('NotesProvider: All books favorited status:', updatedBooks.map(b => ({ id: b.id, title: b.title, favorited: b.favorited })));
+      
+      // Force a state update by returning a new array reference
+      return [...updatedBooks];
+    });
+    
+    // Then sync to Firebase - get the book from current state
     try {
-      await updateBook(id, { favorited: !favorited });
-      console.log('NotesProvider: Book favorite toggled and synced to Firebase');
+      // Use functional update to get the latest book state
+      setBooks(currentBooks => {
+        const book = currentBooks.find(b => b.id === id);
+        if (!book) {
+          console.error('NotesProvider: Book not found for Firebase sync:', id);
+          return currentBooks;
+        }
+        
+        // Sync to Firebase
+        const ref = doc(db, 'books', id);
+        setDoc(ref, {
+          ...book,
+          favorited: newFavoritedValue,
+          createdAt: book.createdAt ? new Date(book.createdAt) : serverTimestamp(),
+        }, { merge: true }).then(() => {
+          console.log('NotesProvider: Book favorite toggled and synced to Firebase, favorited:', newFavoritedValue);
+          // Clear the tracked local state after successful sync (after a delay to ensure onSnapshot has processed)
+          setTimeout(() => {
+            localBookStateRef.current.delete(id);
+            console.log('NotesProvider: Cleared tracked local state for book:', id);
+          }, 2000);
+        }).catch((error) => {
+          console.error('Error syncing book favorite toggle to Firebase:', error);
+        });
+        
+        return currentBooks;
+      });
     } catch (error) {
-      console.error('Error syncing book favorite toggle to Firebase:', error);
+      console.error('Error setting up Firebase sync:', error);
+      // Don't throw - local update is already done
     }
   };
 
@@ -414,13 +647,16 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       setTrackedBooks(prev => new Set([...prev, id]));
       
       // Then sync to Firebase (but don't await to prevent blocking)
-      updateBook(id, {
-        lastOpened: Date.now(),
-        openCount: (book.openCount || 0) + 1
-      }).then(() => {
+      // Use setDoc directly to avoid recursive updateBook call
+      const ref = doc(db, 'books', id);
+      setDoc(ref, {
+        ...updatedBook,
+        createdAt: book.createdAt ? new Date(book.createdAt) : serverTimestamp(),
+      }, { merge: true }).then(() => {
         console.log('NotesProvider: Book usage tracked and synced to Firebase');
       }).catch((error) => {
         console.error('Error syncing book usage to Firebase:', error);
+        // Don't throw - local update is already done
       });
     }
     setSelectedBookId(id);

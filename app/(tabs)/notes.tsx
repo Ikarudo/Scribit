@@ -5,6 +5,7 @@ import { FontAwesome, Feather, MaterialCommunityIcons } from '@expo/vector-icons
 import { useNotes, Book, Page } from '@/components/NotesProvider';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/components/useAuth';
+import { BOOK_ICONS, getBookIconSource } from '@/components/BookIcons';
 
 const paperStyles = [
   { label: 'Grid' },
@@ -37,6 +38,7 @@ export default function NotesScreen() {
 
   const [showBookModal, setShowBookModal] = useState(false);
   const [newBookTitle, setNewBookTitle] = useState('');
+  const [selectedIcon, setSelectedIcon] = useState<string>('BookType 1 -Blue.png');
   const [showPageModal, setShowPageModal] = useState(false);
   const [newPageTitle, setNewPageTitle] = useState('');
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
@@ -95,8 +97,9 @@ export default function NotesScreen() {
   // Handlers
   const handleAddBook = async () => {
     if (!newBookTitle.trim()) return;
-    await createBook(newBookTitle.trim());
+    await createBook(newBookTitle.trim(), selectedIcon);
     setNewBookTitle('');
+    setSelectedIcon('BookType 1 -Blue.png');
     setShowBookModal(false);
   };
 
@@ -352,6 +355,11 @@ export default function NotesScreen() {
                               setShowBookDropdown(false);
                             }}
                           >
+                            <Image
+                              source={getBookIconSource(book.icon)}
+                              style={styles.dropdownBookIcon}
+                              resizeMode="contain"
+                            />
                             <Text style={[
                               styles.dropdownBookText,
                               selectedBookId === book.id && styles.selectedBookText
@@ -410,8 +418,37 @@ export default function NotesScreen() {
               onChangeText={setNewBookTitle}
               placeholder="Book Title"
             />
+            
+            {/* Icon Selection */}
+            <Text style={styles.iconSelectionTitle}>Choose Icon</Text>
+            <ScrollView 
+              style={styles.iconScrollView}
+              contentContainerStyle={styles.iconGrid}
+              showsVerticalScrollIndicator={false}
+            >
+              {BOOK_ICONS.map((iconName) => (
+                <TouchableOpacity
+                  key={iconName}
+                  style={[
+                    styles.iconOption,
+                    selectedIcon === iconName && styles.iconOptionSelected
+                  ]}
+                  onPress={() => setSelectedIcon(iconName)}
+                >
+                  <Image
+                    source={getBookIconSource(iconName)}
+                    style={styles.iconImage}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
-              <TouchableOpacity onPress={() => setShowBookModal(false)} style={styles.cancelBtn}>
+              <TouchableOpacity onPress={() => {
+                setShowBookModal(false);
+                setSelectedIcon('BookType 1 -Blue.png');
+              }} style={styles.cancelBtn}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleAddBook} style={styles.saveBtn}>
@@ -705,6 +742,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '90%',
+    maxHeight: '80%',
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 24,
@@ -801,6 +839,13 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
     paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dropdownBookIcon: {
+    width: 35,
+    height: 35,
+    marginRight: 10,
   },
   dropdownBookText: {
     fontSize: 17,
@@ -854,5 +899,42 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'transparent',
     zIndex: 999,
+  },
+  iconSelectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222',
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  iconScrollView: {
+    maxHeight: 180,
+    marginBottom: 8,
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+  },
+  iconOption: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#FAFAFA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 3,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  iconOptionSelected: {
+    borderColor: '#7B61FF',
+    backgroundColor: '#F0EDFF',
+  },
+  iconImage: {
+    width: '100%',
+    height: '100%',
   },
 });

@@ -5,6 +5,7 @@ import { FontAwesome, Feather } from '@expo/vector-icons';
 import { useNotes, Book } from '@/components/NotesProvider';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/components/useAuth';
+import { getBookIconSource } from '@/components/BookIcons';
 
 export default function HomeScreen() {
   const { user, loading: authLoading } = useAuth();
@@ -57,7 +58,7 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity>
-          <Feather name="menu" size={28} color="#222" />
+          <Feather name="menu" size={28} color="#ffffff" />
         </TouchableOpacity>
         <Image source={require('../../assets/images/Scribit Logo.png')} style={styles.logo} resizeMode="contain" />
         <TouchableOpacity onPress={() => router.push('/(tabs)/profile')}>
@@ -76,6 +77,11 @@ export default function HomeScreen() {
           {recentlyUsed.length === 0 && <Text style={styles.emptyText}>No recent books.</Text>}
           {recentlyUsed.map((book) => (
             <TouchableOpacity key={book.id} onPress={() => handleOpenBook(book)} style={styles.noteCard}> 
+              <Image
+                source={getBookIconSource(book.icon)}
+                style={styles.bookIcon}
+                resizeMode="contain"
+              />
               <Text style={styles.noteTitle} numberOfLines={2}>{book.title}</Text>
               <View style={styles.noteFooter}>
                 <TouchableOpacity onPress={() => handleToggleFavorite(book.id, book.favorited || false)} style={{ marginRight: 8 }}>
@@ -93,6 +99,11 @@ export default function HomeScreen() {
           {favoritedBooks.length === 0 && <Text style={styles.emptyText}>No favourited books.</Text>}
           {favoritedBooks.map((book) => (
             <TouchableOpacity key={book.id} onPress={() => handleOpenBook(book)} style={styles.freqCard}> 
+              <Image
+                source={getBookIconSource(book.icon)}
+                style={styles.bookIconSmall}
+                resizeMode="contain"
+              />
               <Text style={styles.freqTitle} numberOfLines={2}>{book.title}</Text>
               <View style={{ flexDirection: 'row', marginTop: 6 }}>
                 <TouchableOpacity onPress={() => handleToggleFavorite(book.id, book.favorited || false)} style={{ marginRight: 12 }}>
@@ -110,6 +121,11 @@ export default function HomeScreen() {
           {allBooks.length === 0 && <Text style={styles.emptyText}>No books yet.</Text>}
           {allBooks.map((book) => (
             <TouchableOpacity key={book.id} onPress={() => handleOpenBook(book)} style={styles.freqCard}> 
+              <Image
+                source={getBookIconSource(book.icon)}
+                style={styles.bookIconSmall}
+                resizeMode="contain"
+              />
               <Text style={styles.freqTitle} numberOfLines={2}>{book.title}</Text>
               <View style={{ flexDirection: 'row', marginTop: 6 }}>
                 <TouchableOpacity onPress={() => handleToggleFavorite(book.id, book.favorited || false)} style={{ marginRight: 12 }}>
@@ -143,7 +159,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: 70,
-    height: 50,
+    height: 60,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -192,6 +208,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F8FA',
     borderWidth: 1,
     borderColor: '#E0E0E0',
+  },
+  bookIcon: {
+    width: 120,
+    height: 120,
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  bookIconSmall: {
+    width: 120,
+    height: 120,
+    marginBottom: 6,
+    alignSelf: 'flex-start',
   },
   noteTitle: {
     fontSize: 18,
