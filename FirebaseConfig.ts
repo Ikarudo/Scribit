@@ -12,9 +12,6 @@ if (typeof navigator !== 'undefined' && navigator.product === 'ReactNative') {
 }
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyC1fqRDzI1R0_FCJMaTmP3sKi4OJsZRixo",
   authDomain: "scribit-ea02a.firebaseapp.com",

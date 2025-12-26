@@ -96,21 +96,49 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       const parsedLocalBooks = localBooks ? JSON.parse(localBooks) : [];
       const parsedLocalPages = localPages ? JSON.parse(localPages) : [];
       
+      // Deduplicate books by ID (keep the first occurrence)
+      const uniqueBooksMap = new Map<string, Book>();
+      parsedLocalBooks.forEach((book: Book) => {
+        if (!uniqueBooksMap.has(book.id)) {
+          uniqueBooksMap.set(book.id, book);
+        }
+      });
+      const deduplicatedBooks = Array.from(uniqueBooksMap.values());
+      
+      // Deduplicate pages by ID (keep the first occurrence)
+      const uniquePagesMap = new Map<string, Page>();
+      parsedLocalPages.forEach((page: Page) => {
+        if (!uniquePagesMap.has(page.id)) {
+          uniquePagesMap.set(page.id, page);
+        }
+      });
+      const deduplicatedPages = Array.from(uniquePagesMap.values());
+      
       // Ensure favorited is always a boolean
-      const normalizedBooks = parsedLocalBooks.map((book: Book) => ({
+      const normalizedBooks = deduplicatedBooks.map((book: Book) => ({
         ...book,
         favorited: book.favorited === true, // Explicitly set to boolean
       }));
       
+      // Save deduplicated data back to AsyncStorage if duplicates were found
+      if (deduplicatedBooks.length !== parsedLocalBooks.length) {
+        await AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(normalizedBooks));
+        console.log('NotesProvider: Removed', parsedLocalBooks.length - deduplicatedBooks.length, 'duplicate books from storage');
+      }
+      if (deduplicatedPages.length !== parsedLocalPages.length) {
+        await AsyncStorage.setItem(PAGES_KEY, JSON.stringify(deduplicatedPages));
+        console.log('NotesProvider: Removed', parsedLocalPages.length - deduplicatedPages.length, 'duplicate pages from storage');
+      }
+      
       // Set initial state from local storage ONLY
       setBooks(normalizedBooks);
-      setPages(parsedLocalPages);
+      setPages(deduplicatedPages);
       
-      console.log('NotesProvider: Loaded local books:', parsedLocalBooks.length, parsedLocalBooks.map((b: Book) => ({ id: b.id, title: b.title })));
+      console.log('NotesProvider: Loaded local books:', normalizedBooks.length, normalizedBooks.map((b: Book) => ({ id: b.id, title: b.title })));
       
       // Set default selected book if not set
-      if (!selectedBookId && parsedLocalBooks.length > 0) {
-        setSelectedBookId(parsedLocalBooks[0].id);
+      if (!selectedBookId && normalizedBooks.length > 0) {
+        setSelectedBookId(normalizedBooks[0].id);
       }
       
       // Listen to Firestore books (for real-time updates from other devices, but don't overwrite local)
@@ -145,7 +173,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
         setBooks(currentBooks => {
           // CRITICAL: Always use currentBooks (the actual React state), never parsedLocalBooks
           // This ensures we preserve any local state changes
-          const booksToUse = currentBooks.length > 0 ? currentBooks : parsedLocalBooks;
+          const booksToUse = currentBooks.length > 0 ? currentBooks : normalizedBooks;
           const deletedIds = deletedBookIdsRef.current;
           const recentlyUpdated = recentlyUpdatedBooksRef.current;
           const localState = localBookStateRef.current;
@@ -177,12 +205,14 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
           // Only add truly new books from Firebase (don't overwrite existing local books)
           if (newBooks.length > 0) {
             mergedBooks = [...mergedBooks, ...newBooks];
-            AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(mergedBooks));
+            // Deduplicate by ID before saving
+            const uniqueMergedBooks = Array.from(
+              new Map(mergedBooks.map(book => [book.id, book])).values()
+            );
+            AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(uniqueMergedBooks));
             console.log('NotesProvider: Added', newBooks.length, 'new books from Firebase');
+            return uniqueMergedBooks;
           }
-          
-          // IMPORTANT: Don't update AsyncStorage here if we didn't add new books
-          // This prevents overwriting local changes with stale Firebase data
           
           // Clean up old entries from recentlyUpdated (older than 10 seconds)
           const tenSecondsAgo = now - 10000;
@@ -192,19 +222,17 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
             }
           });
           
-          // Only add truly new books from Firebase that weren't locally deleted
-          if (newBooks.length > 0) {
-            mergedBooks.push(...newBooks);
-            AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(mergedBooks));
-            console.log('NotesProvider: Added', newBooks.length, 'new books from Firebase');
-          }
+          // Deduplicate by ID before returning (in case duplicates somehow got in)
+          const uniqueBooks = Array.from(
+            new Map(mergedBooks.map(book => [book.id, book])).values()
+          );
           
-          return mergedBooks;
+          return uniqueBooks;
         });
       }, (error) => {
         console.error('Error loading books from Firestore:', error);
         // Keep local books if Firebase fails
-        setBooks(parsedLocalBooks);
+        setBooks(normalizedBooks);
       });
       
       // Listen to Firestore pages (for real-time updates from other devices, but don't overwrite local)
@@ -264,22 +292,66 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
           );
           
           // Find pages that exist in both - keep local version (local is source of truth)
-          const mergedPages = [...pagesToUse];
+          let mergedPages = [...pagesToUse];
           
           // Only add truly new pages from Firebase that weren't locally deleted
           if (newPages.length > 0) {
-            mergedPages.push(...newPages);
-            AsyncStorage.setItem(PAGES_KEY, JSON.stringify(mergedPages));
+            mergedPages = [...mergedPages, ...newPages];
+            // Deduplicate by ID before saving
+            const uniqueMergedPages = Array.from(
+              new Map(mergedPages.map(page => [page.id, page])).values()
+            );
+            AsyncStorage.setItem(PAGES_KEY, JSON.stringify(uniqueMergedPages));
             console.log('NotesProvider: Added', newPages.length, 'new pages from Firebase');
+            return uniqueMergedPages;
           }
           
-          return mergedPages;
+          // Deduplicate by ID before returning (in case duplicates somehow got in)
+          const uniquePages = Array.from(
+            new Map(mergedPages.map(page => [page.id, page])).values()
+          );
+          
+          return uniquePages;
         });
       }, (error) => {
         console.error('Error loading pages from Firestore:', error);
         // Keep local pages if Firebase fails
-        setPages(parsedLocalPages);
+        setPages(deduplicatedPages);
       });
+      
+      // Sync local changes to Firebase after initial load (with a delay to avoid conflicts)
+      // This ensures Firebase is up to date with any local changes
+      setTimeout(async () => {
+        try {
+          const currentBooks = await AsyncStorage.getItem(BOOKS_KEY);
+          const currentPages = await AsyncStorage.getItem(PAGES_KEY);
+          if (currentBooks && currentPages) {
+            const booksToSync = JSON.parse(currentBooks);
+            const pagesToSync = JSON.parse(currentPages);
+            
+            // Sync books to Firebase
+            for (const book of booksToSync) {
+              await setDoc(doc(db, 'books', book.id), {
+                ...book,
+                createdAt: book.createdAt ? new Date(book.createdAt) : serverTimestamp(),
+              }, { merge: true });
+            }
+            
+            // Sync pages to Firebase
+            for (const page of pagesToSync) {
+              await setDoc(doc(db, 'pages', page.id), {
+                ...page,
+                createdAt: page.createdAt ? new Date(page.createdAt) : serverTimestamp(),
+                lastOpened: page.lastOpened ? new Date(page.lastOpened) : serverTimestamp(),
+              }, { merge: true });
+            }
+            
+            console.log('NotesProvider: Initial sync to Firebase completed');
+          }
+        } catch (error) {
+          console.error('Error during initial sync to Firebase:', error);
+        }
+      }, 2000); // 2 second delay to let Firebase listeners settle
       
       setLoading(false);
       
@@ -298,8 +370,8 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       for (const book of books) {
         await setDoc(doc(db, 'books', book.id), {
           ...book,
-          createdAt: serverTimestamp(),
-        });
+          createdAt: book.createdAt ? new Date(book.createdAt) : serverTimestamp(),
+        }, { merge: true });
       }
       console.log('NotesProvider: Successfully synced', books.length, 'books to Firebase');
     } catch (error) {
@@ -314,9 +386,9 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       for (const page of pages) {
         await setDoc(doc(db, 'pages', page.id), {
           ...page,
-          createdAt: serverTimestamp(),
-          lastOpened: serverTimestamp(),
-        });
+          createdAt: page.createdAt ? new Date(page.createdAt) : serverTimestamp(),
+          lastOpened: page.lastOpened ? new Date(page.lastOpened) : serverTimestamp(),
+        }, { merge: true });
       }
       console.log('NotesProvider: Successfully synced', pages.length, 'pages to Firebase');
     } catch (error) {
