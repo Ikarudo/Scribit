@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { db } from '../FirebaseConfig';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+// DEPRECATED: Firestore imports - kept for future removal
+// import { db } from '../FirebaseConfig';
+// import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 
 export type UserProfile = {
@@ -26,6 +28,8 @@ export function useUserProfile() {
   return ctx;
 }
 
+const PROFILE_KEY_PREFIX = 'scribit_user_profile_';
+
 export const UserProfileProvider = ({ children, user: currentUser }: { children: ReactNode; user: User | null }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,18 +45,19 @@ export const UserProfileProvider = ({ children, user: currentUser }: { children:
 
     const loadProfile = async () => {
       try {
-        const profileRef = doc(db, 'users', currentUser.uid);
-        const profileSnap = await getDoc(profileRef);
+        // Load profile from AsyncStorage
+        const profileKey = `${PROFILE_KEY_PREFIX}${currentUser.uid}`;
+        const storedProfile = await AsyncStorage.getItem(profileKey);
 
-        if (profileSnap.exists()) {
-          const data = profileSnap.data();
+        if (storedProfile) {
+          const data = JSON.parse(storedProfile);
           if (mounted) {
             setProfile({
               uid: currentUser.uid,
               username: data.username || '',
               email: data.email || currentUser.email || '',
-              createdAt: data.createdAt?.toMillis() || Date.now(),
-              updatedAt: data.updatedAt?.toMillis() || Date.now(),
+              createdAt: data.createdAt || Date.now(),
+              updatedAt: data.updatedAt || Date.now(),
             });
           }
         } else {
@@ -64,12 +69,12 @@ export const UserProfileProvider = ({ children, user: currentUser }: { children:
             createdAt: Date.now(),
             updatedAt: Date.now(),
           };
-          await setDoc(profileRef, {
+          await AsyncStorage.setItem(profileKey, JSON.stringify({
             username: defaultProfile.username,
             email: defaultProfile.email,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
+            createdAt: defaultProfile.createdAt,
+            updatedAt: defaultProfile.updatedAt,
+          }));
           if (mounted) {
             setProfile(defaultProfile);
           }
@@ -97,17 +102,22 @@ export const UserProfileProvider = ({ children, user: currentUser }: { children:
     if (!currentUser || !profile) return;
 
     try {
-      const profileRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(profileRef, {
-        ...updates,
-        updatedAt: serverTimestamp(),
-      });
-
-      setProfile({
+      const profileKey = `${PROFILE_KEY_PREFIX}${currentUser.uid}`;
+      const updatedProfile = {
         ...profile,
         ...updates,
         updatedAt: Date.now(),
-      });
+      };
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem(profileKey, JSON.stringify({
+        username: updatedProfile.username,
+        email: updatedProfile.email,
+        createdAt: updatedProfile.createdAt,
+        updatedAt: updatedProfile.updatedAt,
+      }));
+
+      setProfile(updatedProfile);
     } catch (error) {
       console.error('Error updating profile:', error);
       throw error;
@@ -116,22 +126,22 @@ export const UserProfileProvider = ({ children, user: currentUser }: { children:
 
   const createProfile = async (user: User, username: string) => {
     try {
-      const profileRef = doc(db, 'users', user.uid);
-      await setDoc(profileRef, {
+      const profileKey = `${PROFILE_KEY_PREFIX}${user.uid}`;
+      const newProfile = {
         username,
         email: user.email || '',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem(profileKey, JSON.stringify(newProfile));
 
       // Update local state if this is the current user
       if (user.uid === currentUser?.uid) {
         setProfile({
           uid: user.uid,
-          username,
-          email: user.email || '',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          ...newProfile,
         });
       }
     } catch (error) {
