@@ -35,3 +35,7 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+#Firebase Things
+FIREBASE_RULES_DEPLOYMENT.md
+firestore.rules

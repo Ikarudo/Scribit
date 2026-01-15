@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome, Feather } from '@expo/vector-icons';
 import { useNotes, Book } from '@/components/NotesProvider';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/components/useAuth';
-import { getBookIconSource } from '@/components/BookIcons';
+import { getBookIconSource, BOOK_ICONS } from '@/components/BookIcons';
 
 export default function HomeScreen() {
   const { user, loading: authLoading } = useAuth();
-  const { books, loading, toggleBookFavorite, deleteBook } = useNotes();
+  const { books, loading, toggleBookFavorite, deleteBook, createBook } = useNotes();
   const router = useRouter();
+  
+  // Book creation modal state
+  const [showBookModal, setShowBookModal] = useState(false);
+  const [newBookTitle, setNewBookTitle] = useState('');
+  const [selectedIcon, setSelectedIcon] = useState<string>('BookType 1 -Blue.png');
 
   // Sort and select books for sections
   const recentlyUsed = [...books]
@@ -44,6 +49,23 @@ export default function HomeScreen() {
     });
   };
 
+  const handleAddBook = async () => {
+    if (!newBookTitle.trim()) {
+      Alert.alert('Error', 'Please enter a book title');
+      return;
+    }
+    try {
+      await createBook(newBookTitle.trim(), selectedIcon);
+      setNewBookTitle('');
+      setSelectedIcon('BookType 1 -Blue.png');
+      setShowBookModal(false);
+      Alert.alert('Success', 'Book created successfully!');
+    } catch (error) {
+      console.error('Error creating book:', error);
+      Alert.alert('Error', 'Failed to create book. Please try again.');
+    }
+  };
+
   if (authLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -67,7 +89,7 @@ export default function HomeScreen() {
       </View>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.newNoteBtn} onPress={() => router.push('/(tabs)/notes')}>
+          <TouchableOpacity style={styles.newNoteBtn} onPress={() => setShowBookModal(true)}>
             <FontAwesome name="plus" size={18} color="#fff" />
             <Text style={styles.newNoteBtnText}>New Book</Text>
           </TouchableOpacity>
@@ -139,6 +161,60 @@ export default function HomeScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {/* Book Creation Modal */}
+      <Modal visible={showBookModal} animationType="slide" transparent onRequestClose={() => setShowBookModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add New Book</Text>
+            <TextInput
+              style={styles.input}
+              value={newBookTitle}
+              onChangeText={setNewBookTitle}
+              placeholder="Book Title"
+              autoFocus
+            />
+            
+            {/* Icon Selection */}
+            <Text style={styles.iconSelectionTitle}>Choose Icon</Text>
+            <ScrollView 
+              style={styles.iconScrollView}
+              contentContainerStyle={styles.iconGrid}
+              showsVerticalScrollIndicator={false}
+            >
+              {BOOK_ICONS.map((iconName) => (
+                <TouchableOpacity
+                  key={iconName}
+                  style={[
+                    styles.iconOption,
+                    selectedIcon === iconName && styles.iconOptionSelected
+                  ]}
+                  onPress={() => setSelectedIcon(iconName)}
+                >
+                  <Image
+                    source={getBookIconSource(iconName)}
+                    style={styles.iconImage}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
+              <TouchableOpacity onPress={() => {
+                setShowBookModal(false);
+                setNewBookTitle('');
+                setSelectedIcon('BookType 1 -Blue.png');
+              }} style={styles.cancelBtn}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleAddBook} style={styles.saveBtn}>
+                <Text style={styles.saveText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -270,5 +346,105 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     width: '100%',
     marginVertical: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontWeight: 'bold',
+    fontSize: 20,
+    marginBottom: 16,
+    color: '#222',
+  },
+  input: {
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    marginBottom: 8,
+    backgroundColor: '#FAFAFA',
+    color: '#222',
+    minHeight: 52,
+  },
+  iconSelectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222',
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  iconScrollView: {
+    maxHeight: 180,
+    marginBottom: 8,
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+  },
+  iconOption: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#FAFAFA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 3,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  iconOptionSelected: {
+    borderColor: '#7B61FF',
+    backgroundColor: '#F0EDFF',
+  },
+  iconImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cancelBtn: {
+    marginRight: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  cancelText: {
+    color: '#888',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  saveBtn: {
+    backgroundColor: '#7B61FF',
+    borderRadius: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    minWidth: 80,
+    alignItems: 'center',
+    shadowColor: '#7B61FF',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  saveText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 }); 

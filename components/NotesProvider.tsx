@@ -85,6 +85,25 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   const recentlyUpdatedBooksRef = useRef<Map<string, number>>(new Map()); // Track recently updated books to prevent overwrite
   const localBookStateRef = useRef<Map<string, Book>>(new Map()); // Track local book state to always prefer over remote
 
+  // Helper function to safely convert timestamp to Date or use serverTimestamp
+  const safeDate = (timestamp: number | undefined | null): Date | any => {
+    if (!timestamp) return serverTimestamp();
+    // Validate timestamp is within reasonable bounds (year 100 to year 2100)
+    if (typeof timestamp === 'number' && timestamp > 0 && timestamp < 4102444800000) {
+      try {
+        const date = new Date(timestamp);
+        // Check if date is valid
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      } catch (e) {
+        // If Date creation fails, use serverTimestamp
+        return serverTimestamp();
+      }
+    }
+    return serverTimestamp();
+  };
+
   // Load books and pages from Firestore and AsyncStorage
   useEffect(() => {
     const loadBooksAndPages = async () => {
@@ -333,7 +352,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
             for (const book of booksToSync) {
               await setDoc(doc(db, 'books', book.id), {
                 ...book,
-                createdAt: book.createdAt ? new Date(book.createdAt) : serverTimestamp(),
+                createdAt: safeDate(book.createdAt),
               }, { merge: true });
             }
             
@@ -341,8 +360,8 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
             for (const page of pagesToSync) {
               await setDoc(doc(db, 'pages', page.id), {
                 ...page,
-                createdAt: page.createdAt ? new Date(page.createdAt) : serverTimestamp(),
-                lastOpened: page.lastOpened ? new Date(page.lastOpened) : serverTimestamp(),
+                createdAt: safeDate(page.createdAt),
+                lastOpened: safeDate(page.lastOpened),
               }, { merge: true });
             }
             
@@ -370,7 +389,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       for (const book of books) {
         await setDoc(doc(db, 'books', book.id), {
           ...book,
-          createdAt: book.createdAt ? new Date(book.createdAt) : serverTimestamp(),
+          createdAt: safeDate(book.createdAt),
         }, { merge: true });
       }
       console.log('NotesProvider: Successfully synced', books.length, 'books to Firebase');
@@ -386,8 +405,8 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       for (const page of pages) {
         await setDoc(doc(db, 'pages', page.id), {
           ...page,
-          createdAt: page.createdAt ? new Date(page.createdAt) : serverTimestamp(),
-          lastOpened: page.lastOpened ? new Date(page.lastOpened) : serverTimestamp(),
+          createdAt: safeDate(page.createdAt),
+          lastOpened: safeDate(page.lastOpened),
         }, { merge: true });
       }
       console.log('NotesProvider: Successfully synced', pages.length, 'pages to Firebase');
@@ -443,7 +462,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       const ref = doc(db, 'books', id);
       await setDoc(ref, {
         ...updatedBook,
-        createdAt: book.createdAt ? new Date(book.createdAt) : serverTimestamp(),
+        createdAt: safeDate(book.createdAt),
       }, { merge: true });
       console.log('NotesProvider: Book updated and synced to Firebase');
     } catch (error) {
@@ -560,8 +579,8 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       const ref = doc(db, 'pages', id);
       await setDoc(ref, {
         ...updatedPage,
-        createdAt: page.createdAt ? new Date(page.createdAt) : serverTimestamp(),
-        lastOpened: updates.lastOpened ? new Date(updates.lastOpened as number) : (page.lastOpened ? new Date(page.lastOpened) : serverTimestamp()),
+        createdAt: safeDate(page.createdAt),
+        lastOpened: safeDate(updates.lastOpened as number || page.lastOpened),
       }, { merge: true });
       console.log('Page updated successfully and synced to Firebase');
     } catch (error) {
@@ -656,7 +675,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
         setDoc(ref, {
           ...book,
           favorited: newFavoritedValue,
-          createdAt: book.createdAt ? new Date(book.createdAt) : serverTimestamp(),
+          createdAt: safeDate(book.createdAt),
         }, { merge: true }).then(() => {
           console.log('NotesProvider: Book favorite toggled and synced to Firebase, favorited:', newFavoritedValue);
           // Clear the tracked local state after successful sync (after a delay to ensure onSnapshot has processed)
@@ -723,7 +742,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       const ref = doc(db, 'books', id);
       setDoc(ref, {
         ...updatedBook,
-        createdAt: book.createdAt ? new Date(book.createdAt) : serverTimestamp(),
+        createdAt: safeDate(book.createdAt),
       }, { merge: true }).then(() => {
         console.log('NotesProvider: Book usage tracked and synced to Firebase');
       }).catch((error) => {
