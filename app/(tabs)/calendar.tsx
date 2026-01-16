@@ -53,10 +53,12 @@ export default function CalendarScreen() {
   const groupedEvents = sortedEvents.reduce((groups, occurrence) => {
     if (!occurrence || !occurrence.event) return groups;
     const type = occurrence.event.eventType || 'Other';
-    if (!groups[type]) {
-      groups[type] = [];
+    // Ensure type is always a string
+    const eventType = typeof type === 'string' && type.trim() ? type : 'Other';
+    if (!groups[eventType]) {
+      groups[eventType] = [];
     }
-    groups[type].push(occurrence);
+    groups[eventType].push(occurrence);
     return groups;
   }, {} as Record<string, EventOccurrence[]>);
 
@@ -143,28 +145,31 @@ export default function CalendarScreen() {
   };
 
   // Format date for display
-  const formatDate = (dateStr: string): string => {
-    if (!dateStr) return '';
+  const formatDate = (dateStr: string | undefined): string => {
+    if (!dateStr || typeof dateStr !== 'string') return 'Invalid Date';
     try {
       const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return '';
+      if (isNaN(date.getTime())) return 'Invalid Date';
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const month = months[date.getMonth()];
+      const monthIndex = date.getMonth();
+      const month = months[monthIndex];
       const day = date.getDate();
-      if (!month || !day) return '';
+      if (!month || !day || isNaN(day) || isNaN(monthIndex)) return 'Invalid Date';
       return `${month} ${day}`;
     } catch (error) {
-      return '';
+      return 'Invalid Date';
     }
   };
 
   // Format time for display (convert 24-hour to 12-hour with AM/PM)
-  const formatTime = (time24: string): string => {
-    if (!time24 || !time24.includes(':')) {
+  const formatTime = (time24: string | undefined): string => {
+    if (!time24 || typeof time24 !== 'string' || !time24.includes(':')) {
       return '12:00 AM';
     }
     try {
-      const [hours, minutes] = time24.split(':').map(Number);
+      const [hoursStr, minutesStr] = time24.split(':');
+      const hours = parseInt(hoursStr, 10);
+      const minutes = parseInt(minutesStr, 10);
       if (isNaN(hours) || isNaN(minutes)) return '12:00 AM';
       const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
       const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -249,9 +254,9 @@ export default function CalendarScreen() {
                     style={styles.groupHeader}
                     onPress={() => toggleGroup(eventType)}
                   >
-                    <Text style={styles.groupTitle}>{eventType || 'Other'}</Text>
+                    <Text style={styles.groupTitle}>{typeof eventType === 'string' ? eventType : 'Other'}</Text>
                     <View style={styles.groupHeaderRight}>
-                      <Text style={styles.groupCount}>{occurrences.length}</Text>
+                      <Text style={styles.groupCount}>{String(occurrences.length)}</Text>
                       <FontAwesome
                         name={isCollapsed ? 'chevron-down' : 'chevron-up'}
                         size={16}
@@ -271,23 +276,23 @@ export default function CalendarScreen() {
                           <View style={[styles.eventColorBar, { backgroundColor: occurrence.event.color }]} />
                           <View style={styles.eventContent}>
                             <View style={styles.eventHeader}>
-                              <Text style={styles.eventTitle}>{occurrence.event.title || 'Untitled Event'}</Text>
+                              <Text style={styles.eventTitle}>{String(occurrence.event.title || 'Untitled Event')}</Text>
                             </View>
                             <View style={styles.eventDetails}>
-                              {viewMode === 'month' && (
+                              {viewMode === 'month' ? (
                                 <>
                                   <FontAwesome name="calendar" size={12} color="#888" />
-                                  <Text style={styles.eventDetailText}>{formatDate(occurrence.occurrenceDate) || 'Invalid Date'}</Text>
+                                  <Text style={styles.eventDetailText}>{formatDate(occurrence.occurrenceDate)}</Text>
                                 </>
-                              )}
+                              ) : null}
                               <FontAwesome name="clock-o" size={12} color="#888" style={{ marginLeft: viewMode === 'month' ? 12 : 0 }} />
-                              <Text style={styles.eventDetailText}>{formatTime(occurrence.event.time) || '12:00 AM'}</Text>
-                              {occurrence.event.repeat && occurrence.event.repeat !== 'None' && (
+                              <Text style={styles.eventDetailText}>{formatTime(occurrence.event.time)}</Text>
+                              {occurrence.event.repeat && occurrence.event.repeat !== 'None' ? (
                                 <>
                                   <FontAwesome name="repeat" size={12} color="#888" style={{ marginLeft: 12 }} />
-                                  <Text style={styles.eventDetailText}>{occurrence.event.repeat || ''}</Text>
+                                  <Text style={styles.eventDetailText}>{String(occurrence.event.repeat || '')}</Text>
                                 </>
-                              )}
+                              ) : null}
                             </View>
                           </View>
                         </TouchableOpacity>

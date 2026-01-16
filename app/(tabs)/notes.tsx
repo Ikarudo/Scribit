@@ -234,8 +234,8 @@ export default function NotesScreen() {
     }, 100);
   };
 
-  const handleToggleBookFavorite = (bookId: string, favorited: boolean) => {
-    toggleBookFavorite(bookId, !favorited);
+  const handleToggleBookFavorite = (bookId: string) => {
+    toggleBookFavorite(bookId);
   };
 
   const handleDeleteBook = (bookId: string) => {
@@ -369,7 +369,7 @@ export default function NotesScreen() {
                           </TouchableOpacity>
                           <View style={styles.dropdownBookActions}>
                             <TouchableOpacity 
-                              onPress={() => handleToggleBookFavorite(book.id, book.favorited || false)}
+                              onPress={() => handleToggleBookFavorite(book.id)}
                               style={styles.dropdownActionBtn}
                             >
                               <FontAwesome 

@@ -122,13 +122,13 @@ export default function RemindersScreen() {
         </TouchableOpacity>
       </View>
 
-      {totalReminders > 0 && (
+      {totalReminders > 0 ? (
         <View style={styles.statsContainer}>
           <Text style={styles.statsText}>
             {totalReminders} active reminder{totalReminders === 1 ? '' : 's'}
           </Text>
         </View>
-      )}
+      ) : null}
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {renderGroup('calendar', 'From Calendar', 'calendar')}

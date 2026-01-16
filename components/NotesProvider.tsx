@@ -51,7 +51,7 @@ interface NotesContextType {
   updatePage: (id: string, updates: Partial<Page>) => Promise<void>;
   deletePage: (id: string) => Promise<void>;
   pinPage: (id: string, pinned: boolean) => Promise<void>;
-  toggleBookFavorite: (id: string, favorited: boolean) => Promise<void>;
+  toggleBookFavorite: (id: string) => Promise<void>;
   refreshBooksAndPages: () => Promise<void>;
   // DEPRECATED: Firestore sync functions - kept for API compatibility but are no-ops
   syncLocalBooksToFirebase: () => Promise<void>;
@@ -115,16 +115,37 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
         });
         const deduplicatedPages = Array.from(uniquePagesMap.values());
         
-        // Ensure favorited is always a boolean
-        const normalizedBooks = deduplicatedBooks.map((book: Book) => ({
-          ...book,
-          favorited: book.favorited === true, // Explicitly set to boolean
-        }));
+        // Ensure favorited is always a boolean (default to false if undefined)
+        // Also check if any books are missing the favorited property or if it's not a boolean
+        let needsSave = false;
+        const normalizedBooks = deduplicatedBooks.map((book: Book) => {
+          const hasFavorited = 'favorited' in book;
+          const isBoolean = typeof book.favorited === 'boolean';
+          if (!hasFavorited || !isBoolean) {
+            needsSave = true; // Need to save if any book is missing favorited or it's not a boolean
+          }
+          return {
+            ...book,
+            favorited: book.favorited === true, // Explicitly set to boolean (false if undefined/null)
+          };
+        });
         
-        // Save deduplicated data back to AsyncStorage if duplicates were found
+        // Log favorited books for debugging
+        const favoritedCount = normalizedBooks.filter(b => b.favorited === true).length;
+        console.log('NotesProvider: Loaded', favoritedCount, 'favorited books out of', normalizedBooks.length, 'total');
+        console.log('NotesProvider: All books favorited status:', normalizedBooks.map(b => ({ id: b.id, title: b.title, favorited: b.favorited })));
+        if (favoritedCount > 0) {
+          console.log('NotesProvider: Favorited books:', normalizedBooks.filter(b => b.favorited === true).map(b => ({ id: b.id, title: b.title })));
+        }
+        
+        // ALWAYS save normalized data back to AsyncStorage to ensure favorited property exists
+        // This ensures all books have the favorited property
+        await AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(normalizedBooks));
         if (deduplicatedBooks.length !== parsedLocalBooks.length) {
-          await AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(normalizedBooks));
           console.log('NotesProvider: Removed', parsedLocalBooks.length - deduplicatedBooks.length, 'duplicate books from storage');
+        }
+        if (needsSave) {
+          console.log('NotesProvider: Added/updated favorited property for all books');
         }
         if (deduplicatedPages.length !== parsedLocalPages.length) {
           await AsyncStorage.setItem(PAGES_KEY, JSON.stringify(deduplicatedPages));
@@ -135,7 +156,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
         setBooks(normalizedBooks);
         setPages(deduplicatedPages);
         
-        console.log('NotesProvider: Loaded local books:', normalizedBooks.length, normalizedBooks.map((b: Book) => ({ id: b.id, title: b.title })));
+        console.log('NotesProvider: Loaded local books:', normalizedBooks.length, normalizedBooks.map((b: Book) => ({ id: b.id, title: b.title, favorited: b.favorited })));
         
         // Set default selected book if not set
         if (!selectedBookId && normalizedBooks.length > 0) {
@@ -171,6 +192,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       id,
       title,
       createdAt: Date.now(),
+      favorited: false, // Explicitly set to false
       icon: icon || 'BookType 1 -Blue.png', // Default icon
     };
     
@@ -192,12 +214,23 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     
-    const updatedBook = { ...book, ...updates };
+    // Ensure favorited is always a boolean if it's being updated
+    const normalizedUpdates = { ...updates };
+    if ('favorited' in updates) {
+      normalizedUpdates.favorited = updates.favorited === true;
+    }
+    
+    const updatedBook = { ...book, ...normalizedUpdates };
+    // Ensure favorited is always present (default to false if not set)
+    if (updatedBook.favorited === undefined) {
+      updatedBook.favorited = false;
+    }
+    
     const updatedBooks = books.map(b => b.id === id ? updatedBook : b);
     setBooks(updatedBooks);
     await AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(updatedBooks));
     
-    console.log('NotesProvider: Book updated locally');
+    console.log('NotesProvider: Book updated locally, favorited:', updatedBook.favorited);
   };
 
   const deleteBook = async (id: string) => {
@@ -287,11 +320,8 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
     await updatePage(id, { pinned });
   };
 
-  const toggleBookFavorite = async (id: string, favorited: boolean) => {
-    const newFavoritedValue = !favorited;
-    console.log('NotesProvider: Toggling favorite for book:', id, 'from', favorited, 'to', newFavoritedValue);
-    
-    // Update local state immediately
+  const toggleBookFavorite = async (id: string) => {
+    // Get current favorited value from state
     setBooks(currentBooks => {
       const book = currentBooks.find(b => b.id === id);
       if (!book) {
@@ -299,25 +329,34 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
         return currentBooks;
       }
       
-      // Create a completely new array with new object references to ensure React detects the change
-      const updatedBooks = currentBooks.map(b => {
+      const currentFavorited = book.favorited === true;
+      const newFavoritedValue = !currentFavorited;
+      console.log('NotesProvider: Toggling favorite for book:', id, 'from', currentFavorited, 'to', newFavoritedValue);
+      
+      // Create updated books array
+      const updatedBooksArray = currentBooks.map(b => {
         if (b.id === id) {
-          // Create a completely new object for the updated book
+          // Create a completely new object for the updated book with favorited explicitly set
           return { ...b, favorited: newFavoritedValue };
         }
-        // Return existing book (React will optimize this)
+        // Return existing book
         return b;
       });
       
-      // Save to AsyncStorage
-      AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(updatedBooks)).catch(err => {
+      const updatedBook = updatedBooksArray.find(b => b.id === id);
+      console.log('NotesProvider: Book favorite toggled in state, favorited:', updatedBook?.favorited);
+      console.log('NotesProvider: All books after toggle:', updatedBooksArray.map(b => ({ id: b.id, title: b.title, favorited: b.favorited })));
+      
+      // Save to AsyncStorage asynchronously (don't block state update)
+      AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(updatedBooksArray)).then(() => {
+        const favoritedCount = updatedBooksArray.filter(b => b.favorited === true).length;
+        console.log('NotesProvider: Favorite status saved to AsyncStorage, favorited:', newFavoritedValue);
+        console.log('NotesProvider: Total favorited books after save:', favoritedCount);
+      }).catch(err => {
         console.error('Error saving to AsyncStorage:', err);
       });
       
-      console.log('NotesProvider: Book favorite toggled locally, favorited:', newFavoritedValue);
-      
-      // Force a state update by returning a new array reference
-      return [...updatedBooks];
+      return [...updatedBooksArray]; // Return new array reference
     });
   };
 

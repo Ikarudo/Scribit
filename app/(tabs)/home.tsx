@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome, Feather } from '@expo/vector-icons';
@@ -21,13 +21,21 @@ export default function HomeScreen() {
   const recentlyUsed = [...books]
     .sort((a, b) => (b.lastOpened || 0) - (a.lastOpened || 0))
     .slice(0, 5);
-  const favoritedBooks = [...books]
-    .filter(book => book.favorited)
-    .slice(0, 5);
+  
+  // Filter favorited books - ensure we check for explicit true value
+  const favoritedBooks = useMemo(() => {
+    const favorited = books.filter(book => book.favorited === true);
+    console.log('HomeScreen: Favorited books count:', favorited.length, 'out of', books.length);
+    if (favorited.length > 0) {
+      console.log('HomeScreen: Favorited books:', favorited.map(b => ({ id: b.id, title: b.title, favorited: b.favorited })));
+    }
+    return favorited.slice(0, 5);
+  }, [books]);
+  
   const allBooks = [...books].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-  const handleToggleFavorite = (id: string, favorited: boolean) => {
-    toggleBookFavorite(id, !favorited);
+  const handleToggleFavorite = (id: string) => {
+    toggleBookFavorite(id);
   };
 
   const handleDelete = (id: string) => {
@@ -106,7 +114,7 @@ export default function HomeScreen() {
               />
               <Text style={styles.noteTitle} numberOfLines={2}>{book.title}</Text>
               <View style={styles.noteFooter}>
-                <TouchableOpacity onPress={() => handleToggleFavorite(book.id, book.favorited || false)} style={{ marginRight: 8 }}>
+                <TouchableOpacity onPress={() => handleToggleFavorite(book.id)} style={{ marginRight: 8 }}>
                   <FontAwesome name={book.favorited ? 'star' : 'star-o'} size={18} color={book.favorited ? '#FFD700' : '#888'} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDelete(book.id)}>
@@ -118,7 +126,7 @@ export default function HomeScreen() {
         </View>
         <Text style={styles.sectionTitle}>Favourites</Text>
         <View style={styles.freqGrid}>
-          {favoritedBooks.length === 0 && <Text style={styles.emptyText}>No favourited books.</Text>}
+          {favoritedBooks.length === 0 ? <Text style={styles.emptyText}>No favourited books.</Text> : null}
           {favoritedBooks.map((book) => (
             <TouchableOpacity key={book.id} onPress={() => handleOpenBook(book)} style={styles.freqCard}> 
               <Image
@@ -128,7 +136,7 @@ export default function HomeScreen() {
               />
               <Text style={styles.freqTitle} numberOfLines={2}>{book.title}</Text>
               <View style={{ flexDirection: 'row', marginTop: 6 }}>
-                <TouchableOpacity onPress={() => handleToggleFavorite(book.id, book.favorited || false)} style={{ marginRight: 12 }}>
+                <TouchableOpacity onPress={() => handleToggleFavorite(book.id)} style={{ marginRight: 12 }}>
                   <FontAwesome name={book.favorited ? 'star' : 'star-o'} size={18} color={book.favorited ? '#FFD700' : '#888'} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDelete(book.id)}>
@@ -140,7 +148,7 @@ export default function HomeScreen() {
         </View>
         <Text style={styles.sectionTitle}>All Books</Text>
         <View style={styles.freqGrid}>
-          {allBooks.length === 0 && <Text style={styles.emptyText}>No books yet.</Text>}
+          {allBooks.length === 0 ? <Text style={styles.emptyText}>No books yet.</Text> : null}
           {allBooks.map((book) => (
             <TouchableOpacity key={book.id} onPress={() => handleOpenBook(book)} style={styles.freqCard}> 
               <Image
@@ -150,7 +158,7 @@ export default function HomeScreen() {
               />
               <Text style={styles.freqTitle} numberOfLines={2}>{book.title}</Text>
               <View style={{ flexDirection: 'row', marginTop: 6 }}>
-                <TouchableOpacity onPress={() => handleToggleFavorite(book.id, book.favorited || false)} style={{ marginRight: 12 }}>
+                <TouchableOpacity onPress={() => handleToggleFavorite(book.id)} style={{ marginRight: 12 }}>
                   <FontAwesome name={book.favorited ? 'star' : 'star-o'} size={18} color={book.favorited ? '#FFD700' : '#888'} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDelete(book.id)}>
