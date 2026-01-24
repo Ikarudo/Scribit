@@ -1,60 +1,154 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert, Modal, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Pressable,
+  ScrollView,
+  Alert,
+  Modal,
+  TextInput,
+  Dimensions,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome, Feather } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 import { useNotes, Book } from '@/components/NotesProvider';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/components/useAuth';
 import { getBookIconSource, BOOK_ICONS } from '@/components/BookIcons';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const HORIZ_CARD_WIDTH = 148;
+const HORIZ_CARD_GAP = 14;
+const LIST_PAD = 20;
+
+// Material 3 Expressive – bold, colorful, pastel
+const M3 = {
+  background: '#F5F0FA',
+  surface: '#FFFFFF',
+  surfaceContainer: '#F8F4FF',
+  surfaceContainerHigh: '#F0EBF8',
+  surfaceContainerHighest: '#EAE4F5',
+  primary: '#7C5DE8',
+  primaryContainer: '#E8E0FC',
+  onPrimary: '#FFFFFF',
+  onSurface: '#1C1B22',
+  onSurfaceVariant: '#5C5868',
+  outline: '#D4CFE0',
+  outlineVariant: '#E6E1ED',
+  star: '#E8A83C',
+  starOutline: '#B8A078',
+  errorContainer: '#FFEBEE',
+  onErrorContainer: '#b85757',
+  scrim: 'rgba(28, 27, 34, 0.4)',
+  // Pastel tints for cards
+  tint: ['#F0EBFF', '#E8F8F2', '#FFF0EB', '#E8F0FF', '#f2e6f5', '#f9ead6'],
+};
+
+const springConfig = { damping: 14, stiffness: 380 };
+
+function PressableScale({
+  children,
+  onPress,
+  style,
+  contentStyle,
+}: {
+  children: React.ReactNode;
+  onPress?: () => void;
+  style?: object;
+  contentStyle?: object;
+}) {
+  const scale = useSharedValue(1);
+  const s = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => {
+        scale.value = withSpring(0.96, springConfig);
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, springConfig);
+      }}
+      style={style}
+    >
+      <Animated.View style={[s, contentStyle]}>{children}</Animated.View>
+    </Pressable>
+  );
+}
+
+function EmptyState({
+  icon,
+  message,
+  style,
+}: {
+  icon: 'book-open' | 'book' | 'star';
+  message: string;
+  style?: object;
+}) {
+  return (
+    <View style={[styles.emptyRoot, style]}>
+      <View style={styles.emptyIconWrap}>
+        <Feather name={icon} size={40} color={M3.outlineVariant} />
+      </View>
+      <Text style={styles.emptyText}>{message}</Text>
+    </View>
+  );
+}
+
 export default function HomeScreen() {
-  const { user, loading: authLoading } = useAuth();
-  const { books, loading, toggleBookFavorite, deleteBook, createBook } = useNotes();
+  const insets = useSafeAreaInsets();
+  const { loading: authLoading } = useAuth();
+  const { books, toggleBookFavorite, deleteBook, createBook } = useNotes();
   const router = useRouter();
-  
-  // Book creation modal state
+
   const [showBookModal, setShowBookModal] = useState(false);
   const [newBookTitle, setNewBookTitle] = useState('');
   const [selectedIcon, setSelectedIcon] = useState<string>('BookType 1 -Blue.png');
 
-  // Sort and select books for sections
-  const recentlyUsed = [...books]
-    .sort((a, b) => (b.lastOpened || 0) - (a.lastOpened || 0))
-    .slice(0, 5);
-  
-  // Filter favorited books - ensure we check for explicit true value
-  const favoritedBooks = useMemo(() => {
-    const favorited = books.filter(book => book.favorited === true);
-    console.log('HomeScreen: Favorited books count:', favorited.length, 'out of', books.length);
-    if (favorited.length > 0) {
-      console.log('HomeScreen: Favorited books:', favorited.map(b => ({ id: b.id, title: b.title, favorited: b.favorited })));
-    }
-    return favorited.slice(0, 5);
-  }, [books]);
-  
-  const allBooks = [...books].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const recentlyUsed = useMemo(
+    () =>
+      [...books]
+        .sort((a, b) => (b.lastOpened || 0) - (a.lastOpened || 0))
+        .slice(0, 8),
+    [books]
+  );
+  const favoritedBooks = useMemo(
+    () => books.filter((b) => b.favorited === true),
+    [books]
+  );
+  const allBooks = useMemo(
+    () => [...books].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)),
+    [books]
+  );
 
-  const handleToggleFavorite = (id: string) => {
-    toggleBookFavorite(id);
-  };
+  const handleToggleFavorite = (id: string) => toggleBookFavorite(id);
 
   const handleDelete = (id: string) => {
     if (!id) {
       Alert.alert('Delete Error', 'This book cannot be deleted because it has no ID.');
       return;
     }
-    Alert.alert('Delete Book', 'Are you sure you want to delete this book? This will also delete all its pages.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteBook(id) },
-    ]);
+    Alert.alert(
+      'Delete Book',
+      'Are you sure you want to delete this book? This will also delete all its pages.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteBook(id) },
+      ]
+    );
   };
 
   const handleOpenBook = (book: Book) => {
-    // Navigate to notes tab with the book selected
-    router.push({
-      pathname: '/(tabs)/notes',
-      params: { bookId: book.id }
-    });
+    router.push({ pathname: '/(tabs)/notes', params: { bookId: book.id } });
   };
 
   const handleAddBook = async () => {
@@ -68,391 +162,617 @@ export default function HomeScreen() {
       setSelectedIcon('BookType 1 -Blue.png');
       setShowBookModal(false);
       Alert.alert('Success', 'Book created successfully!');
-    } catch (error) {
-      console.error('Error creating book:', error);
+    } catch (e) {
+      console.error(e);
       Alert.alert('Error', 'Failed to create book. Please try again.');
     }
   };
 
+  const getTint = (i: number) => M3.tint[i % M3.tint.length];
+
+  const tabBarClearance = 72;
+  const fabBottom = tabBarClearance + insets.bottom;
+  const scrollBottom = fabBottom + 56 + 24;
+
   if (authLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text>Loading...</Text>
+      <SafeAreaView style={[styles.container, { backgroundColor: M3.background }]} edges={['top']}>
+        <View style={styles.loadingRoot}>
+          <Text style={[styles.loadingText, { color: M3.onSurfaceVariant }]}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity>
-          <Feather name="menu" size={28} color="#ffffff" />
-        </TouchableOpacity>
-        <Image source={require('../../assets/images/Scribit Logo.png')} style={styles.logo} resizeMode="contain" />
-        <TouchableOpacity onPress={() => router.push('/(tabs)/profile')}>
-          <FontAwesome name="user-circle-o" size={28} color="#222" />
-        </TouchableOpacity>
-      </View>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.newNoteBtn} onPress={() => setShowBookModal(true)}>
-            <FontAwesome name="plus" size={18} color="#fff" />
-            <Text style={styles.newNoteBtnText}>New Book</Text>
+    <View style={[styles.container, { backgroundColor: M3.background }]}>
+      <SafeAreaView edges={['top']} style={styles.safeTop}>
+        {/* M3 Top app bar – elevated, rounded bottom */}
+        <View style={styles.appBar}>
+          <TouchableOpacity hitSlop={16} style={styles.appBarIcon}>
+            <Feather name="menu" size={24} color={M3.onSurface} />
+          </TouchableOpacity>
+          <View style={styles.appBarCenter}>
+            <Image
+              source={require('../../assets/images/Scribit Logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+          <TouchableOpacity
+            hitSlop={16}
+            onPress={() => router.push('/(tabs)/profile')}
+            style={styles.appBarIcon}
+          >
+            <FontAwesome name="user-circle-o" size={26} color={M3.onSurface} />
           </TouchableOpacity>
         </View>
-        <Text style={styles.sectionTitle}>Recently Used</Text>
-        <View style={styles.notesGrid}>
-          {recentlyUsed.length === 0 && <Text style={styles.emptyText}>No recent books.</Text>}
-          {recentlyUsed.map((book) => (
-            <TouchableOpacity key={book.id} onPress={() => handleOpenBook(book)} style={styles.noteCard}> 
-              <Image
-                source={getBookIconSource(book.icon)}
-                style={styles.bookIcon}
-                resizeMode="contain"
-              />
-              <Text style={styles.noteTitle} numberOfLines={2}>{book.title}</Text>
-              <View style={styles.noteFooter}>
-                <TouchableOpacity onPress={() => handleToggleFavorite(book.id)} style={{ marginRight: 8 }}>
-                  <FontAwesome name={book.favorited ? 'star' : 'star-o'} size={18} color={book.favorited ? '#FFD700' : '#888'} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDelete(book.id)}>
-                  <FontAwesome name="trash" size={18} color="#FF7B7B" />
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          ))}
+      </SafeAreaView>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottom }]}
+      >
+        <Text style={styles.headline}>Your library</Text>
+
+        {/* Recently used – horizontal carousel */}
+        <Text style={styles.sectionTitle}>Recently used</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.horizScrollContent}
+          snapToInterval={HORIZ_CARD_WIDTH + HORIZ_CARD_GAP}
+          decelerationRate="fast"
+        >
+          {recentlyUsed.length === 0 ? (
+            <View style={[styles.horizCardSlot, { width: SCREEN_WIDTH - LIST_PAD * 2 }]}>
+              <EmptyState icon="book-open" message="No recent books" />
+            </View>
+          ) : (
+            recentlyUsed.map((book, idx) => (
+              <PressableScale
+                key={book.id}
+                onPress={() => handleOpenBook(book)}
+                style={[styles.horizCardWrap, { marginRight: idx < recentlyUsed.length - 1 ? HORIZ_CARD_GAP : 0 }]}
+                contentStyle={[styles.horizCard, { backgroundColor: getTint(idx) }]}
+              >
+                <Image
+                  source={getBookIconSource(book.icon)}
+                  style={styles.horizBookIcon}
+                  resizeMode="contain"
+                />
+                <Text style={styles.horizCardTitle} numberOfLines={2}>{book.title}</Text>
+                <View style={styles.horizCardActions}>
+                  <TouchableOpacity
+                    hitSlop={10}
+                    onPress={() => handleToggleFavorite(book.id)}
+                    style={styles.iconBtn}
+                  >
+                    <FontAwesome
+                      name={book.favorited ? 'star' : 'star-o'}
+                      size={18}
+                      color={book.favorited ? M3.star : M3.starOutline}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    hitSlop={10}
+                    onPress={() => handleDelete(book.id)}
+                    style={styles.iconBtn}
+                  >
+                    <FontAwesome name="trash" size={16} color={M3.onErrorContainer} />
+                  </TouchableOpacity>
+                </View>
+              </PressableScale>
+            ))
+          )}
+        </ScrollView>
+
+        {/* Favourites – list rows */}
+        <Text style={[styles.label, { marginTop: 20 }]}></Text>
+        <Text style={styles.sectionTitle }>Favourites</Text>
+        <View style={styles.listBlock}>
+          {favoritedBooks.length === 0 ? (
+            <EmptyState icon="star" message="No favourited books" />
+          ) : (
+            favoritedBooks.map((book, idx) => (
+              <PressableScale
+                key={book.id}
+                onPress={() => handleOpenBook(book)}
+                style={styles.listRowWrap}
+                contentStyle={[styles.listRow, { backgroundColor: getTint(idx) }]}
+              >
+                <View style={styles.listRowIconWrap}>
+                  <Image
+                    source={getBookIconSource(book.icon)}
+                    style={styles.listRowIcon}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={styles.listRowBody}>
+                  <Text style={styles.listRowTitle} numberOfLines={1}>{book.title}</Text>
+                  <View style={styles.listRowActions}>
+                    <TouchableOpacity
+                      hitSlop={10}
+                      onPress={() => handleToggleFavorite(book.id)}
+                      style={styles.iconBtn}
+                    >
+                      <FontAwesome
+                        name={book.favorited ? 'star' : 'star-o'}
+                        size={18}
+                        color={book.favorited ? M3.star : M3.starOutline}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      hitSlop={10}
+                      onPress={() => handleDelete(book.id)}
+                      style={styles.iconBtn}
+                    >
+                      <FontAwesome name="trash" size={16} color={M3.onErrorContainer} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </PressableScale>
+            ))
+          )}
         </View>
-        <Text style={styles.sectionTitle}>Favourites</Text>
-        <View style={styles.freqGrid}>
-          {favoritedBooks.length === 0 ? <Text style={styles.emptyText}>No favourited books.</Text> : null}
-          {favoritedBooks.map((book) => (
-            <TouchableOpacity key={book.id} onPress={() => handleOpenBook(book)} style={styles.freqCard}> 
-              <Image
-                source={getBookIconSource(book.icon)}
-                style={styles.bookIconSmall}
-                resizeMode="contain"
-              />
-              <Text style={styles.freqTitle} numberOfLines={2}>{book.title}</Text>
-              <View style={{ flexDirection: 'row', marginTop: 6 }}>
-                <TouchableOpacity onPress={() => handleToggleFavorite(book.id)} style={{ marginRight: 12 }}>
-                  <FontAwesome name={book.favorited ? 'star' : 'star-o'} size={18} color={book.favorited ? '#FFD700' : '#888'} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDelete(book.id)}>
-                  <FontAwesome name="trash" size={18} color="#FF7B7B" />
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <Text style={styles.sectionTitle}>All Books</Text>
-        <View style={styles.freqGrid}>
-          {allBooks.length === 0 ? <Text style={styles.emptyText}>No books yet.</Text> : null}
-          {allBooks.map((book) => (
-            <TouchableOpacity key={book.id} onPress={() => handleOpenBook(book)} style={styles.freqCard}> 
-              <Image
-                source={getBookIconSource(book.icon)}
-                style={styles.bookIconSmall}
-                resizeMode="contain"
-              />
-              <Text style={styles.freqTitle} numberOfLines={2}>{book.title}</Text>
-              <View style={{ flexDirection: 'row', marginTop: 6 }}>
-                <TouchableOpacity onPress={() => handleToggleFavorite(book.id)} style={{ marginRight: 12 }}>
-                  <FontAwesome name={book.favorited ? 'star' : 'star-o'} size={18} color={book.favorited ? '#FFD700' : '#888'} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDelete(book.id)}>
-                  <FontAwesome name="trash" size={18} color="#FF7B7B" />
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          ))}
+
+        {/* All books – list rows */}
+        <Text style={[styles.label, { marginTop: 28 }]}></Text>
+        <Text style={styles.sectionTitle}>All books</Text>
+        <View style={[styles.listBlock, { marginBottom: 0 }]}>
+          {allBooks.length === 0 ? (
+            <EmptyState icon="book" message="No books yet" />
+          ) : (
+            allBooks.map((book, idx) => (
+              <PressableScale
+                key={book.id}
+                onPress={() => handleOpenBook(book)}
+                style={styles.listRowWrap}
+                contentStyle={[styles.listRow, { backgroundColor: getTint(idx) }]}
+              >
+                <View style={styles.listRowIconWrap}>
+                  <Image
+                    source={getBookIconSource(book.icon)}
+                    style={styles.listRowIcon}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={styles.listRowBody}>
+                  <Text style={styles.listRowTitle} numberOfLines={1}>{book.title}</Text>
+                  <View style={styles.listRowActions}>
+                    <TouchableOpacity
+                      hitSlop={10}
+                      onPress={() => handleToggleFavorite(book.id)}
+                      style={styles.iconBtn}
+                    >
+                      <FontAwesome
+                        name={book.favorited ? 'star' : 'star-o'}
+                        size={18}
+                        color={book.favorited ? M3.star : M3.starOutline}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      hitSlop={10}
+                      onPress={() => handleDelete(book.id)}
+                      style={styles.iconBtn}
+                    >
+                      <FontAwesome name="trash" size={16} color={M3.onErrorContainer} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </PressableScale>
+            ))
+          )}
         </View>
       </ScrollView>
 
-      {/* Book Creation Modal */}
-      <Modal visible={showBookModal} animationType="slide" transparent onRequestClose={() => setShowBookModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add New Book</Text>
+      {/* FAB */}
+      <PressableScale
+        onPress={() => setShowBookModal(true)}
+        style={[styles.fab, { bottom: fabBottom }]}
+        contentStyle={styles.fabInner}
+      >
+        <Feather name="plus" size={28} color={M3.onPrimary} />
+      </PressableScale>
+
+      {/* Bottom sheet – Add book */}
+      <Modal
+        visible={showBookModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowBookModal(false)}
+      >
+        <View style={StyleSheet.absoluteFill}>
+          <Pressable
+            style={styles.sheetOverlay}
+            onPress={() => {
+              setShowBookModal(false);
+              setNewBookTitle('');
+              setSelectedIcon('BookType 1 -Blue.png');
+            }}
+          />
+          <View
+            style={[
+              styles.sheet,
+              { paddingBottom: Math.max(insets.bottom, 20) + 16 },
+            ]}
+          >
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>New book</Text>
             <TextInput
-              style={styles.input}
+              style={styles.sheetInput}
               value={newBookTitle}
               onChangeText={setNewBookTitle}
-              placeholder="Book Title"
+              placeholder="Book title"
+              placeholderTextColor={M3.onSurfaceVariant}
               autoFocus
             />
-            
-            {/* Icon Selection */}
-            <Text style={styles.iconSelectionTitle}>Choose Icon</Text>
-            <ScrollView 
-              style={styles.iconScrollView}
-              contentContainerStyle={styles.iconGrid}
+            <Text style={styles.sheetLabel}>ICON</Text>
+            <ScrollView
+              style={styles.sheetIconScroll}
+              contentContainerStyle={styles.sheetIconGrid}
               showsVerticalScrollIndicator={false}
             >
-              {BOOK_ICONS.map((iconName) => (
+              {BOOK_ICONS.map((name) => (
                 <TouchableOpacity
-                  key={iconName}
+                  key={name}
                   style={[
-                    styles.iconOption,
-                    selectedIcon === iconName && styles.iconOptionSelected
+                    styles.sheetIconOption,
+                    selectedIcon === name && styles.sheetIconSelected,
                   ]}
-                  onPress={() => setSelectedIcon(iconName)}
+                  onPress={() => setSelectedIcon(name)}
+                  activeOpacity={0.8}
                 >
                   <Image
-                    source={getBookIconSource(iconName)}
-                    style={styles.iconImage}
+                    source={getBookIconSource(name)}
+                    style={styles.sheetIconImg}
                     resizeMode="contain"
                   />
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
-              <TouchableOpacity onPress={() => {
-                setShowBookModal(false);
-                setNewBookTitle('');
-                setSelectedIcon('BookType 1 -Blue.png');
-              }} style={styles.cancelBtn}>
-                <Text style={styles.cancelText}>Cancel</Text>
+            <View style={styles.sheetActions}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowBookModal(false);
+                  setNewBookTitle('');
+                  setSelectedIcon('BookType 1 -Blue.png');
+                }}
+                style={styles.sheetCancel}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.sheetCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleAddBook} style={styles.saveBtn}>
-                <Text style={styles.saveText}>Add</Text>
-              </TouchableOpacity>
+              <PressableScale
+                onPress={handleAddBook}
+                style={styles.sheetAddWrap}
+                contentStyle={styles.sheetAdd}
+              >
+                <Text style={styles.sheetAddText}>Create</Text>
+              </PressableScale>
             </View>
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    paddingHorizontal: 0,
   },
-  headerRow: {
+  safeTop: {
+    backgroundColor: 'transparent',
+  },
+  loadingRoot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  appBar: {
+    marginTop:8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: M3.surfaceContainerHigh,
+    borderTopLeftRadius:28,
+    borderTopRightRadius:28,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    shadowColor: '#5C4FB8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  appBarIcon: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  appBarCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   logo: {
-    width: 70,
-    height: 60,
+    width: 66,
+    height: 62,
   },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    marginBottom: 18,
-    marginLeft: 20,
-    marginTop: 10,
+  appBarTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: M3.onSurface,
+    letterSpacing: 0.3,
   },
-  newNoteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#7B61FF',
-    borderRadius: 30,
-    paddingHorizontal: 22,
-    paddingVertical: 12,
-    marginRight: 16,
+  scrollContent: {
+    paddingHorizontal: LIST_PAD,
+    paddingTop: 24,
   },
-  newNoteBtnText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginLeft: 8,
+  headline: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: M3.onSurface,
+    letterSpacing: -0.5,
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: M3.onSurfaceVariant,
+    letterSpacing: 1.2,
+    marginBottom: 4,
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#222',
-    marginLeft: 20,
-    marginTop: 18,
+    fontWeight: '700',
+    color: M3.onSurface,
+    marginBottom: 14,
+  },
+  horizScrollContent: {
+    paddingRight: LIST_PAD,
+  },
+  horizCardSlot: {
+    marginRight: 0,
+  },
+  horizCardWrap: {
+    width: HORIZ_CARD_WIDTH,
+  },
+  horizCard: {
+    borderRadius: 24,
+    padding: 16,
+    minHeight: 200,
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+  },
+  horizBookIcon: {
+    width: 88,
+    height: 88,
+    alignSelf: 'center',
     marginBottom: 10,
   },
-  notesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
+  horizCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: M3.onSurface,
+    lineHeight: 20,
+    marginBottom: 10,
   },
-  noteCard: {
-    width: '47%',
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 16,
-    minHeight: 120,
-    justifyContent: 'space-between',
-    backgroundColor: '#F7F8FA',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  bookIcon: {
-    width: 120,
-    height: 120,
-    marginBottom: 8,
-    alignSelf: 'flex-start',
-  },
-  bookIconSmall: {
-    width: 120,
-    height: 120,
-    marginBottom: 6,
-    alignSelf: 'flex-start',
-  },
-  noteTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#222',
-    marginBottom: 12,
-  },
-  noteFooter: {
+  horizCardActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    gap: 6,
   },
-  noteTime: {
-    color: '#222',
-    fontSize: 14,
+  iconBtn: {
+    padding: 4,
   },
-  freqGrid: {
+  listBlock: {
+    gap: 10,
+    marginBottom: 8,
+  },
+  listRowWrap: {
+    width: '100%',
+  },
+  listRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 30,
+    alignItems: 'center',
+    borderRadius: 20,
+    padding: 14,
+    overflow: 'hidden',
   },
-  freqCard: {
-    width: '47%',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 14,
-    minHeight: 80,
+  listRowIconWrap: {
+    // width: 56,
+    // height: 56,
+    // borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.0)',
+    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F7F8FA',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    marginRight: 14,
   },
-  freqTitle: {
+  listRowIcon: {
+    width: 74,
+    height: 74,
+  },
+  listRowBody: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  listRowTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#222',
-    marginBottom: 6,
+    fontWeight: '700',
+    color: M3.onSurface,
+    flex: 1,
   },
-  freqSubtitle: {
-    color: '#888',
-    fontSize: 14,
+  listRowActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  emptyRoot: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: M3.surfaceContainerHighest,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
   },
   emptyText: {
-    color: '#888',
-    fontSize: 16,
-    textAlign: 'center',
-    width: '100%',
-    marginVertical: 20,
+    fontSize: 15,
+    color: M3.onSurfaceVariant,
+    fontWeight: '500',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '90%',
-    maxHeight: '80%',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
+  fab: {
+    position: 'absolute',
+    right: LIST_PAD,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    shadowColor: M3.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  modalTitle: {
-    fontWeight: 'bold',
-    fontSize: 20,
-    marginBottom: 16,
-    color: '#222',
+  fabInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+    backgroundColor: M3.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  input: {
+  sheetOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: M3.scrim,
+  },
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: M3.surface,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 12,
+    maxHeight: '88%',
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: M3.outlineVariant,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  sheetTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: M3.onSurface,
+    marginBottom: 20,
+    letterSpacing: -0.3,
+  },
+  sheetInput: {
+    borderRadius: 16,
+    backgroundColor: M3.surfaceContainerHigh,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    padding: 14,
+    borderColor: M3.outline,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     fontSize: 16,
-    marginBottom: 8,
-    backgroundColor: '#FAFAFA',
-    color: '#222',
-    minHeight: 52,
+    color: M3.onSurface,
+    marginBottom: 20,
   },
-  iconSelectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#222',
-    marginTop: 12,
-    marginBottom: 12,
+  sheetLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: M3.onSurfaceVariant,
+    letterSpacing: 1.2,
+    marginBottom: 10,
   },
-  iconScrollView: {
+  sheetIconScroll: {
     maxHeight: 180,
-    marginBottom: 8,
+    marginBottom: 20,
   },
-  iconGrid: {
+  sheetIconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'flex-start',
+    gap: 10,
   },
-  iconOption: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
+  sheetIconOption: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
     borderWidth: 2,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FAFAFA',
+    borderColor: M3.outline,
+    backgroundColor: M3.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 3,
-    marginRight: 6,
-    marginBottom: 6,
+    overflow: 'hidden',
   },
-  iconOptionSelected: {
-    borderColor: '#7B61FF',
-    backgroundColor: '#F0EDFF',
+  sheetIconSelected: {
+    borderColor: M3.primary,
+    backgroundColor: M3.primaryContainer,
   },
-  iconImage: {
+  sheetIconImg: {
     width: '100%',
     height: '100%',
   },
-  cancelBtn: {
-    marginRight: 16,
-    paddingVertical: 10,
+  sheetActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 12,
+  },
+  sheetCancel: {
+    paddingVertical: 12,
     paddingHorizontal: 20,
   },
-  cancelText: {
-    color: '#888',
+  sheetCancelText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: M3.onSurfaceVariant,
   },
-  saveBtn: {
-    backgroundColor: '#7B61FF',
-    borderRadius: 10,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    minWidth: 80,
+  sheetAddWrap: {
+    alignSelf: 'flex-start',
+  },
+  sheetAdd: {
+    backgroundColor: M3.primary,
+    borderRadius: 16,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    minWidth: 100,
     alignItems: 'center',
-    shadowColor: '#7B61FF',
-    shadowOpacity: 0.3,
+    justifyContent: 'center',
+    shadowColor: M3.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
     elevation: 3,
   },
-  saveText: {
-    color: '#fff',
-    fontWeight: 'bold',
+  sheetAddText: {
     fontSize: 16,
+    fontWeight: '700',
+    color: M3.onPrimary,
   },
-}); 
+});

@@ -1,7 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { FontAwesome } from '@expo/vector-icons';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  Pressable,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FontAwesome, Feather } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/FirebaseConfig';
 import { useRouter } from 'expo-router';
@@ -13,7 +26,61 @@ import { useCalendar } from '@/components/CalendarProvider';
 import { useReminders } from '@/components/RemindersProvider';
 import EditProfileModal from '@/components/EditProfileModal';
 
+const LIST_PAD = 20;
+const springConfig = { damping: 14, stiffness: 380 };
+
+// Material 3 Expressive – match home page
+const M3 = {
+  background: '#F5F0FA',
+  surface: '#FFFFFF',
+  surfaceContainerHigh: '#F0EBF8',
+  primary: '#7C5DE8',
+  primaryContainer: '#E8E0FC',
+  onPrimary: '#FFFFFF',
+  onSurface: '#1C1B22',
+  onSurfaceVariant: '#5C5868',
+  outline: '#D4CFE0',
+  outlineVariant: '#E6E1ED',
+  errorContainer: '#FFEBEE',
+  onErrorContainer: '#b85757',
+  scrim: 'rgba(28, 27, 34, 0.4)',
+  tint: ['#F0EBFF', '#E8F8F2', '#FFF0EB', '#E8F0FF', '#f2e6f5', '#f9ead6'],
+  stat: { books: '#7C5DE8', tasks: '#5CB85C', events: '#E85D5D', reminders: '#E8B83C' },
+};
+
+function PressableScale({
+  children,
+  onPress,
+  style,
+  contentStyle,
+}: {
+  children: React.ReactNode;
+  onPress?: () => void;
+  style?: object;
+  contentStyle?: object;
+}) {
+  const scale = useSharedValue(1);
+  const s = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => {
+        scale.value = withSpring(0.96, springConfig);
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, springConfig);
+      }}
+      style={style}
+    >
+      <Animated.View style={[s, contentStyle]}>{children}</Animated.View>
+    </Pressable>
+  );
+}
+
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const { user, loading: authLoading } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useUserProfile();
   const { books } = useNotes();
@@ -52,18 +119,18 @@ export default function ProfileScreen() {
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
     });
   };
 
   if (authLoading || profileLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+      <SafeAreaView style={[styles.container, { backgroundColor: M3.background }]} edges={['top']}>
+        <View style={styles.loadingRoot}>
+          <Text style={[styles.loadingText, { color: M3.onSurfaceVariant }]}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
@@ -72,119 +139,155 @@ export default function ProfileScreen() {
   const stats = {
     books: books.length,
     tasks: tasks.length,
-    completedTasks: tasks.filter(t => t.completed).length,
+    completedTasks: tasks.filter((t) => t.completed).length,
     events: events.length,
     reminders: reminders.length,
   };
+  const progressPct = stats.tasks > 0 ? Math.round((stats.completedTasks / stats.tasks) * 100) : 0;
+
+  const scrollBottom = Math.max(insets.bottom, 24) + 90;
+  const scrollTop = 24 + insets.top;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
-      </View>
+    <View style={[styles.container, { backgroundColor: M3.background }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: scrollTop, paddingBottom: scrollBottom },
+        ]}
+      >
+        <Text style={styles.headline}>Your space</Text>
+        <Text style={styles.subhead}>
+          Hey, {profile?.username || 'User'} 👋
+        </Text>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* User Info Card */}
-        <View style={styles.userCard}>
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatarCircle}>
-              <FontAwesome name="user" size={40} color="#7B61FF" />
+        {/* User card */}
+        <PressableScale
+          onPress={() => setShowEditModal(true)}
+          style={styles.userCardWrap}
+          contentStyle={[styles.userCard, { backgroundColor: M3.tint[0] }]}
+        >
+          <View style={styles.avatarRow}>
+            <View style={styles.avatarOuter}>
+              <View style={styles.avatarCircle}>
+                <FontAwesome name="user" size={40} color={M3.primary} />
+              </View>
+              <TouchableOpacity
+                style={styles.editBadge}
+                onPress={() => setShowEditModal(true)}
+                hitSlop={8}
+              >
+                <Feather name="edit-2" size={14} color={M3.onPrimary} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity 
-              style={styles.editButton}
-              onPress={() => setShowEditModal(true)}
-            >
-              <FontAwesome name="pencil" size={14} color="#fff" />
-            </TouchableOpacity>
           </View>
           <Text style={styles.username}>{profile?.username || 'User'}</Text>
           <Text style={styles.userEmail}>{user?.email || 'No email'}</Text>
           {profile?.createdAt && (
-            <Text style={styles.memberSince}>
-              Member since {formatDate(profile.createdAt)}
-            </Text>
+            <View style={styles.memberChip}>
+              <Feather name="calendar" size={12} color={M3.onSurfaceVariant} />
+              <Text style={styles.memberSince}>
+                Member since {formatDate(profile.createdAt)}
+              </Text>
+            </View>
           )}
-        </View>
+        </PressableScale>
 
-        {/* Stats Section */}
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Your Activity</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <FontAwesome name="book" size={24} color="#7B61FF" />
-              <Text style={styles.statNumber}>{stats.books}</Text>
-              <Text style={styles.statLabel}>Books</Text>
+        {/* Stats */}
+        <Text style={styles.label}>YOUR ACTIVITY</Text>
+        <Text style={styles.sectionTitle}>Quick stats</Text>
+        <View style={styles.statsGrid}>
+          <View style={[styles.statCard, { backgroundColor: M3.tint[0] }]}>
+            <View style={[styles.statIconWrap, { backgroundColor: M3.primaryContainer }]}>
+              <FontAwesome name="book" size={22} color={M3.stat.books} />
             </View>
-            <View style={styles.statCard}>
-              <FontAwesome name="check-square" size={24} color="#6BCB77" />
-              <Text style={styles.statNumber}>{stats.tasks}</Text>
-              <Text style={styles.statLabel}>Tasks</Text>
+            <Text style={styles.statNumber}>{stats.books}</Text>
+            <Text style={styles.statLabel}>Books</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: M3.tint[1] }]}>
+            <View style={[styles.statIconWrap, { backgroundColor: '#E8F5E9' }]}>
+              <FontAwesome name="check-square" size={22} color={M3.stat.tasks} />
             </View>
-            <View style={styles.statCard}>
-              <FontAwesome name="calendar" size={24} color="#FF6B6B" />
-              <Text style={styles.statNumber}>{stats.events}</Text>
-              <Text style={styles.statLabel}>Events</Text>
+            <Text style={styles.statNumber}>{stats.tasks}</Text>
+            <Text style={styles.statLabel}>Tasks</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: M3.tint[2] }]}>
+            <View style={[styles.statIconWrap, { backgroundColor: '#FFEBEE' }]}>
+              <FontAwesome name="calendar" size={22} color={M3.stat.events} />
             </View>
-            <View style={styles.statCard}>
-              <FontAwesome name="bell" size={24} color="#FFE66D" />
-              <Text style={styles.statNumber}>{stats.reminders}</Text>
-              <Text style={styles.statLabel}>Reminders</Text>
+            <Text style={styles.statNumber}>{stats.events}</Text>
+            <Text style={styles.statLabel}>Events</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: M3.tint[3] }]}>
+            <View style={[styles.statIconWrap, { backgroundColor: '#FFF8E1' }]}>
+              <FontAwesome name="bell" size={22} color={M3.stat.reminders} />
             </View>
+            <Text style={styles.statNumber}>{stats.reminders}</Text>
+            <Text style={styles.statLabel}>Reminders</Text>
           </View>
         </View>
 
-        {/* Task Progress */}
+        {/* Task progress */}
         {stats.tasks > 0 && (
-          <View style={styles.progressSection}>
-            <Text style={styles.sectionTitle}>Task Progress</Text>
-            <View style={styles.progressCard}>
+          <>
+            <Text style={[styles.label, { marginTop: 8 }]}>TASK PROGRESS</Text>
+            <Text style={styles.sectionTitle}>You're on a roll</Text>
+            <View style={[styles.progressCard, { backgroundColor: M3.tint[4] }]}>
               <View style={styles.progressHeader}>
                 <Text style={styles.progressText}>
-                  {stats.completedTasks} of {stats.tasks} completed
+                  {stats.completedTasks} of {stats.tasks} done
                 </Text>
-                <Text style={styles.progressPercent}>
-                  {Math.round((stats.completedTasks / stats.tasks) * 100)}%
-                </Text>
+                <Text style={styles.progressPercent}>{progressPct}%</Text>
               </View>
               <View style={styles.progressBar}>
-                <View 
+                <View
                   style={[
-                    styles.progressFill, 
-                    { width: `${(stats.completedTasks / stats.tasks) * 100}%` }
-                  ]} 
+                    styles.progressFill,
+                    { width: `${progressPct}%` },
+                  ]}
                 />
               </View>
+              {progressPct === 100 && (
+                <Text style={styles.progressCelebrate}>🎉 All done!</Text>
+              )}
             </View>
-          </View>
+          </>
         )}
 
-        {/* Settings Section */}
-        <View style={styles.settingsSection}>
-          <TouchableOpacity style={styles.settingItem} onPress={() => setShowEditModal(true)}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: '#7B61FF20' }]}>
-                <FontAwesome name="user" size={18} color="#7B61FF" />
-              </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingText}>Edit Profile</Text>
-                <Text style={styles.settingSubtext}>Change your username</Text>
-              </View>
+        {/* Settings */}
+        <Text style={[styles.label, { marginTop: stats.tasks > 0 ? 8 : 0 }]}>SETTINGS</Text>
+        <Text style={styles.sectionTitle}>Account</Text>
+        <View style={styles.settingsBlock}>
+          <PressableScale
+            onPress={() => setShowEditModal(true)}
+            style={styles.settingRowWrap}
+            contentStyle={styles.settingRow}
+          >
+            <View style={[styles.settingIconWrap, { backgroundColor: M3.primaryContainer }]}>
+              <FontAwesome name="user" size={18} color={M3.primary} />
             </View>
-            <FontAwesome name="chevron-right" size={16} color="#888" />
-          </TouchableOpacity>
+            <View style={styles.settingBody}>
+              <Text style={styles.settingTitle}>Edit profile</Text>
+              <Text style={styles.settingSub}>Change your username</Text>
+            </View>
+            <Feather name="chevron-right" size={20} color={M3.onSurfaceVariant} />
+          </PressableScale>
 
-          <TouchableOpacity style={styles.settingItem} onPress={handleSignOut}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: '#FF7B7B20' }]}>
-                <FontAwesome name="sign-out" size={18} color="#FF7B7B" />
-              </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingText}>Sign Out</Text>
-                <Text style={styles.settingSubtext}>Sign out of your account</Text>
-              </View>
+          <PressableScale
+            onPress={handleSignOut}
+            style={styles.settingRowWrap}
+            contentStyle={[styles.settingRow, styles.settingRowLast]}
+          >
+            <View style={[styles.settingIconWrap, { backgroundColor: M3.errorContainer }]}>
+              <FontAwesome name="sign-out" size={18} color={M3.onErrorContainer} />
             </View>
-            <FontAwesome name="chevron-right" size={16} color="#888" />
-          </TouchableOpacity>
+            <View style={styles.settingBody}>
+              <Text style={[styles.settingTitle, { color: M3.onErrorContainer }]}>Sign out</Text>
+              <Text style={styles.settingSub}>Sign out of your account</Text>
+            </View>
+            <Feather name="chevron-right" size={20} color={M3.onSurfaceVariant} />
+          </PressableScale>
         </View>
       </ScrollView>
 
@@ -194,133 +297,152 @@ export default function ProfileScreen() {
         onSave={handleSaveProfile}
         currentUsername={profile?.username || ''}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
-  loadingContainer: {
+  loadingRoot: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
     fontSize: 16,
-    color: '#888',
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 8,
+  scrollContent: {
+    paddingHorizontal: LIST_PAD,
   },
-  headerTitle: {
+  headline: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#222',
+    fontWeight: '800',
+    color: M3.onSurface,
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  subhead: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: M3.onSurfaceVariant,
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: M3.onSurfaceVariant,
+    letterSpacing: 1.2,
+    marginBottom: 4,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: M3.onSurface,
+    marginBottom: 14,
+  },
+  userCardWrap: {
+    width: '100%',
+    marginBottom: 28,
   },
   userCard: {
-    backgroundColor: '#F7F8FA',
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 24,
-    marginHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 24,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    overflow: 'hidden',
   },
-  avatarContainer: {
-    position: 'relative',
+  avatarRow: {
     marginBottom: 16,
   },
-  avatarCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#7B61FF',
+  avatarOuter: {
+    position: 'relative',
   },
-  editButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#7B61FF',
+  avatarCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: M3.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#fff',
+    borderColor: M3.primaryContainer,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: M3.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: M3.tint[0],
   },
   username: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#222',
+    fontSize: 22,
+    fontWeight: '800',
+    color: M3.onSurface,
     marginBottom: 4,
   },
   userEmail: {
-    fontSize: 16,
-    color: '#888',
-    marginBottom: 8,
+    fontSize: 15,
+    color: M3.onSurfaceVariant,
+    marginBottom: 10,
+  },
+  memberChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.7)',
   },
   memberSince: {
-    fontSize: 14,
-    color: '#888',
-  },
-  statsSection: {
-    marginHorizontal: 20,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#222',
-    marginBottom: 16,
+    fontSize: 13,
+    color: M3.onSurfaceVariant,
+    fontWeight: '500',
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+    marginBottom: 28,
   },
   statCard: {
     width: '47%',
-    backgroundColor: '#F7F8FA',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 20,
+    padding: 18,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    overflow: 'hidden',
+  },
+  statIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
   },
   statNumber: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#222',
-    marginTop: 8,
-    marginBottom: 4,
+    fontSize: 26,
+    fontWeight: '800',
+    color: M3.onSurface,
+    marginBottom: 2,
   },
   statLabel: {
     fontSize: 14,
-    color: '#888',
-    fontWeight: '500',
-  },
-  progressSection: {
-    marginHorizontal: 20,
-    marginBottom: 24,
+    color: M3.onSurfaceVariant,
+    fontWeight: '600',
   },
   progressCard: {
-    backgroundColor: '#F7F8FA',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 20,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    marginBottom: 28,
+    overflow: 'hidden',
   },
   progressHeader: {
     flexDirection: 'row',
@@ -331,65 +453,75 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222',
+    color: M3.onSurface,
   },
   progressPercent: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#7B61FF',
+    fontWeight: '800',
+    color: M3.primary,
   },
   progressBar: {
-    height: 8,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 4,
+    height: 10,
+    backgroundColor: M3.outlineVariant,
+    borderRadius: 5,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#7B61FF',
-    borderRadius: 4,
+    backgroundColor: M3.primary,
+    borderRadius: 5,
   },
-  settingsSection: {
-    marginHorizontal: 20,
-    marginBottom: 32,
-    backgroundColor: '#F7F8FA',
-    borderRadius: 16,
+  progressCelebrate: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: M3.primary,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  settingsBlock: {
+    borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    backgroundColor: M3.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+    marginBottom: 24,
   },
-  settingItem: {
+  settingRowWrap: {
+    width: '100%',
+  },
+  settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: M3.outlineVariant,
   },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+  settingRowLast: {
+    borderBottomWidth: 0,
   },
-  settingIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  settingIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
-  settingTextContainer: {
+  settingBody: {
     flex: 1,
   },
-  settingText: {
+  settingTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#222',
+    fontWeight: '700',
+    color: M3.onSurface,
     marginBottom: 2,
   },
-  settingSubtext: {
+  settingSub: {
     fontSize: 13,
-    color: '#888',
+    color: M3.onSurfaceVariant,
+    fontWeight: '500',
   },
 });

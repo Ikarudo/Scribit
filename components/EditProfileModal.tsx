@@ -1,6 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import {
+  Modal,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Pressable,
+  StyleSheet,
+  Alert,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 import { FontAwesome } from '@expo/vector-icons';
+
+const M3 = {
+  background: '#F5F0FA',
+  surface: '#FFFFFF',
+  surfaceContainerHigh: '#F0EBF8',
+  primary: '#7C5DE8',
+  primaryContainer: '#E8E0FC',
+  onPrimary: '#FFFFFF',
+  onSurface: '#1C1B22',
+  onSurfaceVariant: '#5C5868',
+  outline: '#D4CFE0',
+  scrim: 'rgba(28, 27, 34, 0.4)',
+};
+
+const springConfig = { damping: 14, stiffness: 380 };
 
 type EditProfileModalProps = {
   visible: boolean;
@@ -15,8 +45,14 @@ export default function EditProfileModal({
   onSave,
   currentUsername,
 }: EditProfileModalProps) {
+  const insets = useSafeAreaInsets();
   const [username, setUsername] = useState(currentUsername);
   const [saving, setSaving] = useState(false);
+
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   useEffect(() => {
     if (visible) {
@@ -48,42 +84,59 @@ export default function EditProfileModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Edit Profile</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <FontAwesome name="times" size={20} color="#888" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.content}>
-            <Text style={styles.label}>Username</Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                value={username}
-                onChangeText={setUsername}
-                placeholder="Enter username"
-                placeholderTextColor="#BDBDBD"
-                autoCapitalize="none"
-                maxLength={30}
-              />
-            </View>
-          </View>
-
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <View style={StyleSheet.absoluteFill}>
+        <Pressable style={styles.overlay} onPress={onClose} />
+        <View
+          style={[
+            styles.sheet,
+            { paddingBottom: Math.max(insets.bottom, 20) + 16 },
+          ]}
+        >
+          <View style={styles.handle} />
+          <Text style={styles.title}>Edit profile</Text>
+          <Text style={styles.label}>USERNAME</Text>
+          <TextInput
+            style={styles.input}
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Enter username"
+            placeholderTextColor={M3.onSurfaceVariant}
+            autoCapitalize="none"
+            maxLength={30}
+            autoFocus
+          />
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose} disabled={saving}>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={onClose}
+              disabled={saving}
+              activeOpacity={0.7}
+            >
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            <Pressable
+              style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
               onPress={handleSave}
               disabled={saving}
+              onPressIn={() => {
+                scale.value = withSpring(0.96, springConfig);
+              }}
+              onPressOut={() => {
+                scale.value = withSpring(1, springConfig);
+              }}
             >
-              <Text style={styles.saveText}>{saving ? 'Saving...' : 'Save'}</Text>
-            </TouchableOpacity>
+              <Animated.View style={[styles.saveBtnInner, animatedStyle]}>
+                <Text style={styles.saveText}>
+                  {saving ? 'Saving…' : 'Save'}
+                </Text>
+              </Animated.View>
+            </Pressable>
           </View>
         </View>
       </View>
@@ -93,87 +146,98 @@ export default function EditProfileModal({
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: M3.scrim,
   },
-  modal: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 20,
-    paddingBottom: 40,
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: M3.surface,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     paddingHorizontal: 24,
-    maxHeight: '80%',
+    paddingTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 12,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: M3.outline,
+    alignSelf: 'center',
+    marginBottom: 20,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#222',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  content: {
-    marginBottom: 24,
+    fontWeight: '800',
+    color: M3.onSurface,
+    letterSpacing: -0.3,
+    marginBottom: 20,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#222',
-    marginBottom: 8,
-  },
-  inputContainer: {
-    backgroundColor: '#FAFAFA',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
-    paddingHorizontal: 16,
-    height: 52,
-    justifyContent: 'center',
+    fontSize: 11,
+    fontWeight: '700',
+    color: M3.onSurfaceVariant,
+    letterSpacing: 1.2,
+    marginBottom: 10,
   },
   input: {
+    borderRadius: 16,
+    backgroundColor: M3.surfaceContainerHigh,
+    borderWidth: 1.5,
+    borderColor: M3.outline,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     fontSize: 16,
-    color: '#222',
+    color: M3.onSurface,
+    marginBottom: 24,
   },
   actions: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
     gap: 12,
   },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: '#F7F8FA',
-    borderRadius: 12,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
+  cancelBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
   },
   cancelText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222',
+    color: M3.onSurfaceVariant,
   },
-  saveButton: {
-    flex: 1,
-    backgroundColor: '#7B61FF',
-    borderRadius: 12,
-    height: 52,
+  saveBtn: {
+    backgroundColor: M3.primary,
+    borderRadius: 16,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    minWidth: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: M3.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  saveBtnDisabled: {
+    opacity: 0.6,
+  },
+  saveBtnInner: {
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
   saveText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '700',
+    color: M3.onPrimary,
   },
 });
-
