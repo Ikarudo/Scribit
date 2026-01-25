@@ -2,8 +2,8 @@ import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
+import { CollapsibleTabBar } from '@/components/CollapsibleTabBar';
 
-// Material 3–style dark tab bar (matches home page theme, contrasts with light screens)
 const TAB_BAR = {
   background: '#1f1f22',
   active: '#7C5DE8',
@@ -23,6 +23,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBar: (props) => <CollapsibleTabBar {...props} />,
         tabBarActiveTintColor: TAB_BAR.active,
         tabBarInactiveTintColor: TAB_BAR.inactive,
         tabBarStyle: {
@@ -49,7 +50,7 @@ export default function TabLayout() {
             bottom: 0,
             left: 0,
             right: 0,
-            height: 92, // Height to cover tab bar + margins
+            height: 92,
             backgroundColor: '#363539',
           }} />
         ),

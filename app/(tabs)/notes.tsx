@@ -1,18 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, TextInput, FlatList, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FontAwesome, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNotes, Book, Page } from '@/components/NotesProvider';
+import { FontAwesome } from '@expo/vector-icons';
+import { useNotes, Book } from '@/components/NotesProvider';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/components/useAuth';
 import { BOOK_ICONS, getBookIconSource } from '@/components/BookIcons';
-
-const paperStyles = [
-  { label: 'Grid' },
-  { label: 'Lined' },
-  { label: 'Blank' },
-  { label: 'Dotted' },
-];
+import TenTapNoteEditor, { type TenTapNoteEditorRef } from '@/components/TenTapNoteEditor';
+import { toEditorContent } from '@/components/notesContentUtils';
 
 export default function NotesScreen() {
   const { loading: authLoading } = useAuth();
@@ -42,47 +37,55 @@ export default function NotesScreen() {
   const [showPageModal, setShowPageModal] = useState(false);
   const [newPageTitle, setNewPageTitle] = useState('');
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
-  const [pageContent, setPageContent] = useState('');
   const [longPressedPageId, setLongPressedPageId] = useState<string | null>(null);
+  const editorRef = useRef<TenTapNoteEditorRef>(null);
   const [showBookDropdown, setShowBookDropdown] = useState(false);
   const [editingBookId, setEditingBookId] = useState<string | null>(null);
   const [editingBookTitle, setEditingBookTitle] = useState('');
-
-  // Debug: Log books array
-  useEffect(() => {
-    console.log('NotesScreen: Books loaded:', books.length, books.map(b => ({ id: b.id, title: b.title })));
-  }, [books]);
-
-  // Debug: Log when modal opens
-  useEffect(() => {
-    if (showBookDropdown) {
-      console.log('NotesScreen: Book dropdown opened with', books.length, 'books');
-    }
-  }, [showBookDropdown, books]);
 
   // Get current book and its pages
   const currentBook = books.find((b) => b.id === selectedBookId) || books[0];
   const bookPages = pages.filter((p) => p.bookId === (currentBook?.id || ''));
   const selectedPage = bookPages.find((p) => p.id === selectedPageId) || bookPages[0];
 
-  // Auto-select first page when book changes
+  // Auto-select first page when no selection
   useEffect(() => {
     if (currentBook && bookPages.length > 0 && !selectedPageId) {
       setSelectedPageId(bookPages[0].id);
-      setPageContent(bookPages[0].content || '');
     }
   }, [currentBook, bookPages, selectedPageId]);
 
-  // Reset selected page when switching books
+  // Save current page and switch to first page only when switching *books*.
+  // Must not depend on selectedPageId — otherwise selecting a different page
+  // re-runs this effect and overwrites selection back to first page.
+  const prevBookIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (currentBook && bookPages.length > 0) {
-      setSelectedPageId(bookPages[0].id);
-      setPageContent(bookPages[0].content || '');
+    if (!currentBook) return;
+    const isBookSwitch = prevBookIdRef.current !== null && prevBookIdRef.current !== currentBook.id;
+    prevBookIdRef.current = currentBook.id;
+
+    const pagesForBook = pages.filter((p) => p.bookId === currentBook.id);
+    if (pagesForBook.length > 0) {
+      if (isBookSwitch && selectedPageId && editorRef.current) {
+        const pageIdToSave = selectedPageId;
+        const first = pagesForBook[0];
+        (async () => {
+          try {
+            const html = await editorRef.current!.getHTML();
+            await updatePage(pageIdToSave, { content: html });
+          } catch (e) {
+            console.warn('NotesScreen: Failed to save page on book switch', e);
+          }
+          setSelectedPageId(first.id);
+        })();
+      } else if (!isBookSwitch) {
+        setSelectedPageId(pagesForBook[0].id);
+      }
     } else {
       setSelectedPageId(null);
-      setPageContent('');
     }
-  }, [currentBook?.id]); // Only trigger when book changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally only on book change; pages/selectedPageId/updatePage read from closure.
+  }, [currentBook?.id]);
 
   // Handle book selection from router params
   useEffect(() => {
@@ -185,44 +188,60 @@ export default function NotesScreen() {
     }
   };
 
-  const handleSelectPage = (id: string) => {
+  const handleSelectPage = useCallback(async (id: string) => {
+    if (id === selectedPageId) return;
+    const nextPage = bookPages.find((p) => p.id === id);
+    if (!nextPage) return;
+    if (selectedPageId && editorRef.current) {
+      try {
+        const html = await editorRef.current.getHTML();
+        await updatePage(selectedPageId, { content: html });
+      } catch (e) {
+        console.warn('NotesScreen: Failed to save page on switch', e);
+      }
+    }
     setSelectedPageId(id);
-    const page = bookPages.find((p) => p.id === id);
-    setPageContent(page?.content || '');
-  };
+  }, [selectedPageId, bookPages, updatePage]);
 
-  const handleSavePage = async () => {
+  const handleSavePage = useCallback(async () => {
     if (!selectedBookId) {
       Alert.alert('Error', 'Please select a book first');
       return;
     }
-    if (!selectedPageId) {
+    if (!selectedPageId || !selectedPage) {
       Alert.alert('Error', 'Please select a page to save');
       return;
     }
-    if (!selectedPage) {
-      Alert.alert('Error', 'Selected page not found');
-      return;
-    }
-    
+    if (!editorRef.current) return;
     try {
-      await updatePage(selectedPage.id, { 
-        content: pageContent, 
-        lastOpened: Date.now(), 
-        openCount: (selectedPage.openCount || 0) + 1 
+      const html = await editorRef.current.getHTML();
+      await updatePage(selectedPage.id, {
+        content: html,
+        lastOpened: Date.now(),
+        openCount: (selectedPage.openCount || 0) + 1,
       });
       Alert.alert('Success', 'Page saved successfully!');
     } catch (error) {
       console.error('Error saving page:', error);
       Alert.alert('Error', 'Failed to save page. Please try again.');
     }
-  };
+  }, [selectedBookId, selectedPageId, selectedPage, updatePage]);
 
   const handleDeletePage = (pageId: string) => {
     setLongPressedPageId(null);
     Alert.alert('Delete Page', 'Are you sure you want to delete this page?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deletePage(pageId) },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          deletePage(pageId);
+          if (selectedPageId === pageId) {
+            const rest = bookPages.filter((p) => p.id !== pageId);
+            setSelectedPageId(rest.length > 0 ? rest[0].id : null);
+          }
+        },
+      },
     ]);
   };
 
@@ -497,7 +516,7 @@ export default function NotesScreen() {
         ) : (
           <View style={styles.emptyPagesContainer}>
             <Text style={styles.emptyPagesText}>No pages yet</Text>
-            <TouchableOpacity style={styles.quickAddBtn} onPress={handleAddPage}>
+            <TouchableOpacity style={styles.quickAddBtn} onPress={() => setShowPageModal(true)}>
               <FontAwesome name="plus" size={16} color="#7B61FF" />
               <Text style={styles.quickAddText}>Add First Page</Text>
             </TouchableOpacity>
@@ -513,7 +532,7 @@ export default function NotesScreen() {
               style={styles.input}
               value={newPageTitle}
               onChangeText={setNewPageTitle}
-              placeholder="Page Title (optional - will use timestamp if blank)"
+              placeholder="Page name (optional — uses date/time if blank)"
             />
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
               <TouchableOpacity onPress={() => setShowPageModal(false)} style={styles.cancelBtn}>
@@ -526,19 +545,28 @@ export default function NotesScreen() {
           </View>
         </View>
       </Modal>
-      {/* Note Area (Text only for now) - Only show if pages exist */}
+      {/* Rich-text note area with TenTap editor - only show when a page is selected */}
       {bookPages.length > 0 && selectedPage && (
         <View style={styles.noteArea}>
-          <TextInput
-            style={styles.noteInput}
-            value={pageContent}
-            onChangeText={setPageContent}
+          <View style={styles.noteAreaHeader}>
+            <Text style={styles.noteAreaTitle} numberOfLines={1}>
+              {selectedPage.title || 'Untitled'}
+            </Text>
+            <TouchableOpacity style={styles.savePageBtn} onPress={handleSavePage}>
+              <Text style={styles.savePageBtnText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+          <TenTapNoteEditor
+            ref={editorRef}
+            key={selectedPage.id}
+            initialContent={toEditorContent(selectedPage.content || '')}
             placeholder="Start typing your note..."
-            multiline
+            onContentChange={
+              selectedPageId && selectedPage
+                ? (html) => updatePage(selectedPage.id, { content: html })
+                : undefined
+            }
           />
-          <TouchableOpacity style={styles.savePageBtn} onPress={handleSavePage}>
-            <Text style={styles.savePageBtnText}>Save</Text>
-          </TouchableOpacity>
         </View>
       )}
     </SafeAreaView>
@@ -695,34 +723,41 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
     marginHorizontal: 16,
-    // ADJUSTED: Reduced margin top for tighter spacing
-    marginTop: 8, 
-    // ADDED: flex: 1 to make the note area fill the remaining space vertically
-    flex: 1, 
-    padding: 20,
+    marginTop: 8,
+    flex: 1,
+    padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
     elevation: 1,
+    overflow: 'hidden',
   },
-  noteInput: {
-    fontSize: 17,
+  noteAreaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  noteAreaTitle: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#222',
     flex: 1,
-    textAlignVertical: 'top',
-    lineHeight: 24,
+    marginRight: 12,
   },
   savePageBtn: {
     backgroundColor: '#7B61FF',
     borderRadius: 12,
-    alignSelf: 'flex-end',
-    marginTop: 12,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    minWidth: 100,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    minWidth: 90,
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#7B61FF',
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 2 },
