@@ -323,10 +323,7 @@ export default function NotesScreen() {
         />
       )}
 
-      <View style={styles.logoContainer}>
-        <Image source={require('../../assets/images/Scribit Logo.png')} style={styles.logo} resizeMode="contain" />
-      </View>
-      
+     
       {/* Header: Book dropdown, add book, logo */}
       <View style={styles.headerRow}>
         {/* Book Dropdown */}
@@ -583,11 +580,8 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     backgroundColor: '#fff',
   },
-  logo: {
-    width: 115,
-    height: 85,
-  },
   headerRow: {
+    marginTop: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -641,14 +635,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginHorizontal: 16,
     // CHANGED: Removed extra top margin to bring it right under the books dropdown
-    marginTop: 8, 
-    padding: 14,
+    marginTop: 10, 
+    padding: 8,
   },
   pagesHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 0,
+    marginBottom: 5,
   },
   pagesTitle: {
     fontSize: 17,
@@ -658,22 +652,24 @@ const styles = StyleSheet.create({
   addPageBtn: {
     backgroundColor: '#7B61FF',
     borderRadius: 18,
-    width: 36,
-    height: 36,
+    width: 46,
+    height: 46,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   pageBtn: {
     borderWidth: 1.5,
     borderColor: '#E0E0E0',
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    borderRadius: 28,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     marginRight: 10,
     backgroundColor: '#fff',
     minHeight: 48,
     justifyContent: 'center',
   },
+
   pageBtnActive: {
     borderColor: '#7B61FF',
     backgroundColor: '#ffffffff',

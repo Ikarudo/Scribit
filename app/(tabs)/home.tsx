@@ -31,7 +31,7 @@ const LIST_PAD = 20;
 
 // Material 3 Expressive – bold, colorful, pastel
 const M3 = {
-  background: '#F5F0FA',
+  background: '#f2edf8',
   surface: '#FFFFFF',
   surfaceContainer: '#F8F4FF',
   surfaceContainerHigh: '#F0EBF8',
@@ -547,6 +547,8 @@ const styles = StyleSheet.create({
   },
   horizCard: {
     borderRadius: 24,
+    borderWidth: 1,
+    borderColor: M3.outline,
     padding: 16,
     minHeight: 200,
     justifyContent: 'space-between',
@@ -559,7 +561,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   horizCardTitle: {
-    fontSize: 15,
+    fontSize: 17,
+    textAlign: 'center',
     fontWeight: '700',
     color: M3.onSurface,
     lineHeight: 20,
@@ -583,6 +586,8 @@ const styles = StyleSheet.create({
   listRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: M3.outline,
     borderRadius: 20,
     padding: 14,
     overflow: 'hidden',
