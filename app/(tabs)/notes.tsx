@@ -8,6 +8,12 @@ import { useAuth } from '@/components/useAuth';
 import { BOOK_ICONS, getBookIconSource } from '@/components/BookIcons';
 import TenTapNoteEditor, { type TenTapNoteEditorRef } from '@/components/TenTapNoteEditor';
 import { toEditorContent } from '@/components/notesContentUtils';
+import {
+  NOTE_TEMPLATES,
+  type NoteTemplateId,
+  buildNoteTemplateHtml,
+  defaultTitleForTemplate,
+} from '@/components/noteTemplates';
 
 export default function NotesScreen() {
   const { loading: authLoading } = useAuth();
@@ -36,6 +42,7 @@ export default function NotesScreen() {
   const [selectedIcon, setSelectedIcon] = useState<string>('BookType 1 -Blue.png');
   const [showPageModal, setShowPageModal] = useState(false);
   const [newPageTitle, setNewPageTitle] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<NoteTemplateId>('blank');
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [longPressedPageId, setLongPressedPageId] = useState<string | null>(null);
   const editorRef = useRef<TenTapNoteEditorRef>(null);
@@ -97,6 +104,12 @@ export default function NotesScreen() {
     }
   }, [bookIdFromParams, books]);
 
+  useEffect(() => {
+    if (showPageModal) {
+      setSelectedTemplateId('blank');
+    }
+  }, [showPageModal]);
+
   // Handlers
   const handleAddBook = async () => {
     if (!newBookTitle.trim()) return;
@@ -153,35 +166,30 @@ export default function NotesScreen() {
       return;
     }
     
-    // If no custom title is provided, use timestamp
-    let finalTitle = newPageTitle.trim();
-    if (!finalTitle) {
-      const now = new Date();
-      const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-      
-      // Check if a page with this timestamp already exists
-      const existingPagesWithTimestamp = bookPages.filter(page => 
-        page.title.startsWith(timestamp)
-      );
-      
-      if (existingPagesWithTimestamp.length > 0) {
-        // Find the highest number suffix
-        const numbers = existingPagesWithTimestamp.map(page => {
-          const match = page.title.match(new RegExp(`^${timestamp.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: (\\d+))?$`));
-          return match ? (parseInt(match[1]) || 1) : 1;
-        });
-        const nextNumber = Math.max(...numbers) + 1;
-        finalTitle = `${timestamp} ${nextNumber}`;
-      } else {
-        finalTitle = timestamp;
-      }
-    }
+    const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const makeUniqueTitle = (base: string) => {
+      const existing = bookPages.filter((p) => (p.title || '').startsWith(base));
+      if (existing.length === 0) return base;
+      const numbers = existing.map((p) => {
+        const match = (p.title || '').match(new RegExp(`^${escapeRegExp(base)}(?: (\\d+))?$`));
+        return match ? (parseInt(match[1], 10) || 1) : 1;
+      });
+      const nextNumber = Math.max(...numbers) + 1;
+      return `${base} ${nextNumber}`;
+    };
+
+    const now = new Date();
+    const userTitle = newPageTitle.trim();
+    const baseTitle = userTitle || defaultTitleForTemplate(selectedTemplateId, now);
+    const finalTitle = userTitle ? userTitle : makeUniqueTitle(baseTitle);
+    const content = buildNoteTemplateHtml(selectedTemplateId, now);
     
     try {
-      await createPage({ title: finalTitle, content: '', pinned: false });
+      const newId = await createPage({ title: finalTitle, content, pinned: false });
       setNewPageTitle('');
       setShowPageModal(false);
-      Alert.alert('Success', 'Page created successfully!');
+      setSelectedPageId(newId);
+      setTimeout(() => editorRef.current?.focus('end'), 150);
     } catch (error) {
       console.error('Error creating page:', error);
       Alert.alert('Error', 'Failed to create page. Please try again.');
@@ -531,12 +539,61 @@ export default function NotesScreen() {
               onChangeText={setNewPageTitle}
               placeholder="Page name (optional — uses date/time if blank)"
             />
+
+            <Text style={styles.templateTitle}>Start with</Text>
+            <ScrollView
+              style={styles.templateScroll}
+              contentContainerStyle={styles.templateGrid}
+              showsVerticalScrollIndicator={false}
+            >
+              {NOTE_TEMPLATES.map((t) => {
+                const selected = t.id === selectedTemplateId;
+                return (
+                  <TouchableOpacity
+                    key={t.id}
+                    style={[styles.templateCard, selected && styles.templateCardSelected]}
+                    onPress={() => setSelectedTemplateId(t.id)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.templateCardHeader}>
+                      <Text style={[styles.templateName, selected && styles.templateNameSelected]}>
+                        {t.name}
+                      </Text>
+                      {selected ? (
+                        <View style={styles.templateBadge}>
+                          <Text style={styles.templateBadgeText}>Selected</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text style={styles.templateDescription} numberOfLines={2}>
+                      {t.description}
+                    </Text>
+                    {t.sections.length > 0 ? (
+                      <View style={styles.templatePillsRow}>
+                        {t.sections.slice(0, 4).map((s) => (
+                          <View key={s} style={styles.templatePill}>
+                            <Text style={styles.templatePillText} numberOfLines={1}>
+                              {s}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={styles.templateBlankHint}>Blank page, no structure.</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
               <TouchableOpacity onPress={() => setShowPageModal(false)} style={styles.cancelBtn}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleAddPageWithCustomTitle} style={styles.saveBtn}>
-                <Text style={styles.saveText}>Add</Text>
+                <Text style={styles.saveText}>
+                  {selectedTemplateId === 'blank' ? 'Create' : 'Create from template'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -827,6 +884,92 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  templateTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#222',
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  templateScroll: {
+    maxHeight: 260,
+  },
+  templateGrid: {
+    paddingBottom: 2,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  templateCard: {
+    width: '48%',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#FAFAFA',
+    padding: 12,
+    minHeight: 120,
+  },
+  templateCardSelected: {
+    borderColor: '#7B61FF',
+    backgroundColor: '#F0EDFF',
+  },
+  templateCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 6,
+  },
+  templateName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#222',
+  },
+  templateNameSelected: {
+    color: '#4B2FE5',
+  },
+  templateBadge: {
+    backgroundColor: '#7B61FF',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  templateBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  templateDescription: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 10,
+    lineHeight: 16,
+  },
+  templatePillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  templatePill: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#E7E3F7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    maxWidth: '100%',
+  },
+  templatePillText: {
+    fontSize: 11,
+    color: '#5C5868',
+    fontWeight: '700',
+  },
+  templateBlankHint: {
+    fontSize: 12,
+    color: '#777',
+    fontWeight: '600',
   },
   dropdownMenu: {
     position: 'absolute',

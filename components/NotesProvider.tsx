@@ -47,7 +47,7 @@ interface NotesContextType {
   createBook: (title: string, icon?: string) => Promise<void>;
   updateBook: (id: string, updates: Partial<Book>) => Promise<void>;
   deleteBook: (id: string) => Promise<void>;
-  createPage: (page: Partial<Page>) => Promise<void>;
+  createPage: (page: Partial<Page>) => Promise<string>;
   updatePage: (id: string, updates: Partial<Page>) => Promise<void>;
   deletePage: (id: string) => Promise<void>;
   pinPage: (id: string, pinned: boolean) => Promise<void>;
@@ -278,6 +278,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       await AsyncStorage.setItem(PAGES_KEY, JSON.stringify(updatedPages));
       
       console.log('Page created successfully locally');
+      return id;
     } catch (error) {
       console.error('Error creating page:', error);
       throw error;

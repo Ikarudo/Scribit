@@ -5,14 +5,31 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
   Alert,
 } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { Task, TaskPriority } from './TasksProvider';
 import DatePickerModal from './DatePickerModal';
 import TimePickerModal from './TimePickerModal';
+
+const M3 = {
+  surface: '#FFFFFF',
+  surfaceContainerHigh: '#F0EBF8',
+  primary: '#7C5DE8',
+  primaryContainer: '#E8E0FC',
+  onPrimary: '#FFFFFF',
+  onSurface: '#1C1B22',
+  onSurfaceVariant: '#5C5868',
+  outline: '#D4CFE0',
+  errorContainer: '#FFEBEE',
+  onErrorContainer: '#b85757',
+  scrim: 'rgba(28, 27, 34, 0.4)',
+};
+const PRIORITY_COLORS = { High: '#E85D5D', Medium: '#E8B83C', Low: '#5CB85C' };
 
 const PRIORITY_OPTIONS: TaskPriority[] = ['High', 'Medium', 'Low'];
 
@@ -146,49 +163,58 @@ export default function TaskCreationModal({
     }
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleCancel}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <Text style={styles.title}>{initialTask ? 'Edit Task' : 'Create New Task'}</Text>
+      <View style={StyleSheet.absoluteFill}>
+        <Pressable style={styles.overlay} onPress={handleCancel} />
+        <View
+          style={[
+            styles.sheet,
+            { paddingBottom: Math.max(insets.bottom, 20) + 16 },
+          ]}
+        >
+          <View style={styles.handle} />
+          <Text style={styles.title}>
+            {initialTask ? 'Edit task' : 'New task'}
+          </Text>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Name */}
-            <Text style={styles.label}>Task Name *</Text>
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
+            <Text style={styles.label}>NAME</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Enter task name"
-              placeholderTextColor="#BDBDBD"
+              placeholder="Task name"
+              placeholderTextColor={M3.onSurfaceVariant}
             />
 
-            {/* Description */}
-            <Text style={styles.label}>Description (Optional)</Text>
+            <Text style={styles.label}>DESCRIPTION (OPTIONAL)</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={description}
               onChangeText={setDescription}
-              placeholder="Enter task description"
-              placeholderTextColor="#BDBDBD"
+              placeholder="Description"
+              placeholderTextColor={M3.onSurfaceVariant}
               multiline
               numberOfLines={4}
             />
 
-            {/* Priority */}
-            <Text style={styles.label}>Priority</Text>
+            <Text style={styles.label}>PRIORITY</Text>
             <View style={styles.optionsRow}>
               {PRIORITY_OPTIONS.map((option) => (
                 <TouchableOpacity
                   key={option}
                   style={[
                     styles.optionButton,
-                    priority === option && styles.optionButtonActive,
-                    priority === 'High' && option === 'High' && styles.priorityHigh,
-                    priority === 'Medium' && option === 'Medium' && styles.priorityMedium,
-                    priority === 'Low' && option === 'Low' && styles.priorityLow,
+                    priority === option && {
+                      backgroundColor: PRIORITY_COLORS[option],
+                      borderColor: PRIORITY_COLORS[option],
+                    },
                   ]}
                   onPress={() => setPriority(option)}
+                  activeOpacity={0.8}
                 >
                   <Text
                     style={[
@@ -202,14 +228,14 @@ export default function TaskCreationModal({
               ))}
             </View>
 
-            {/* Due Date */}
-            <Text style={styles.label}>Due Date (Optional)</Text>
+            <Text style={styles.label}>DUE DATE (OPTIONAL)</Text>
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.7}
             >
-              <FontAwesome name="calendar" size={16} color="#7B61FF" style={{ marginRight: 8 }} />
-              <Text style={[styles.dateButtonText, !dueDate && styles.dateButtonPlaceholder]}>
+              <Feather name="calendar" size={18} color={M3.primary} style={{ marginRight: 10 }} />
+              <Text style={[styles.dateButtonText, !dueDate && styles.placeholder]}>
                 {dueDate ? formatDateDisplay(dueDate) : 'Select date'}
               </Text>
               {dueDate && (
@@ -218,23 +244,24 @@ export default function TaskCreationModal({
                     e.stopPropagation();
                     setDueDate('');
                   }}
-                  style={styles.clearButton}
+                  style={styles.clearBtn}
+                  hitSlop={8}
                 >
-                  <FontAwesome name="times" size={14} color="#888" />
+                  <Feather name="x" size={18} color={M3.onSurfaceVariant} />
                 </TouchableOpacity>
               )}
             </TouchableOpacity>
 
-            {/* Due Time */}
             {dueDate && (
               <>
-                <Text style={styles.label}>Time (Optional)</Text>
+                <Text style={styles.label}>TIME (OPTIONAL)</Text>
                 <TouchableOpacity
                   style={styles.timeButton}
                   onPress={() => setShowTimePicker(true)}
+                  activeOpacity={0.7}
                 >
-                  <FontAwesome name="clock-o" size={16} color="#7B61FF" style={{ marginRight: 8 }} />
-                  <Text style={[styles.timeButtonText, !dueTime && styles.timeButtonPlaceholder]}>
+                  <Feather name="clock" size={18} color={M3.primary} style={{ marginRight: 10 }} />
+                  <Text style={[styles.timeButtonText, !dueTime && styles.placeholder]}>
                     {dueTime ? formatTimeDisplay(dueTime) : 'Select time'}
                   </Text>
                   {dueTime && (
@@ -243,48 +270,46 @@ export default function TaskCreationModal({
                         e.stopPropagation();
                         setDueTime('');
                       }}
-                      style={styles.clearTimeButton}
+                      style={styles.clearBtn}
+                      hitSlop={8}
                     >
-                      <FontAwesome name="times" size={14} color="#888" />
+                      <Feather name="x" size={18} color={M3.onSurfaceVariant} />
                     </TouchableOpacity>
                   )}
                 </TouchableOpacity>
               </>
             )}
             <Text style={styles.hint}>
-              If the due date is not today, the task will be added to the calendar
+              If the due date is not today, the task is added to the calendar.
             </Text>
 
-            {/* Completed Checkbox */}
-            <View style={styles.checkboxContainer}>
+            <View style={styles.checkboxRow}>
               <TouchableOpacity
-                style={styles.checkbox}
+                style={[styles.checkbox, completed && styles.checkboxChecked]}
                 onPress={() => setCompleted(!completed)}
               >
-                {completed && <Text style={styles.checkmark}>✓</Text>}
+                {completed && <Feather name="check" size={14} color={M3.onPrimary} />}
               </TouchableOpacity>
               <Text style={styles.checkboxLabel}>Mark as completed</Text>
             </View>
 
-            {/* Add Reminder Option */}
             {dueDate && (
-              <View style={styles.checkboxContainer}>
+              <View style={styles.checkboxRow}>
                 <TouchableOpacity
-                  style={styles.checkbox}
+                  style={[styles.checkbox, addReminder && styles.checkboxChecked]}
                   onPress={() => setAddReminder(!addReminder)}
                 >
-                  {addReminder && <Text style={styles.checkmark}>✓</Text>}
+                  {addReminder && <Feather name="check" size={14} color={M3.onPrimary} />}
                 </TouchableOpacity>
                 <Text style={styles.checkboxLabel}>Add reminder for this task</Text>
               </View>
             )}
           </ScrollView>
 
-          {/* Actions */}
           <View style={styles.actions}>
             {initialTask && onDelete && (
-              <TouchableOpacity 
-                style={styles.deleteButton} 
+              <TouchableOpacity
+                style={styles.deleteBtn}
                 onPress={() => {
                   onDelete(initialTask.id);
                   onClose();
@@ -293,10 +318,10 @@ export default function TaskCreationModal({
                 <Text style={styles.deleteText}>Delete</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
               <Text style={styles.saveText}>Save</Text>
             </TouchableOpacity>
           </View>
@@ -330,210 +355,203 @@ export default function TaskCreationModal({
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: M3.scrim,
   },
-  modal: {
-    width: '90%',
-    maxHeight: '85%',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: M3.surface,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    maxHeight: '90%',
     shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: M3.outline,
+    alignSelf: 'center',
+    marginBottom: 20,
   },
   title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#222',
+    fontSize: 24,
+    fontWeight: '800',
+    color: M3.onSurface,
+    letterSpacing: -0.3,
+    marginBottom: 20,
+  },
+  scroll: {
+    maxHeight: 400,
     marginBottom: 20,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#222',
-    marginTop: 12,
-    marginBottom: 8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: M3.onSurfaceVariant,
+    letterSpacing: 1.2,
+    marginBottom: 10,
   },
   input: {
+    borderRadius: 16,
+    backgroundColor: M3.surfaceContainerHigh,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    padding: 14,
+    borderColor: M3.outline,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     fontSize: 16,
-    backgroundColor: '#FAFAFA',
-    color: '#222',
-    minHeight: 52,
+    color: M3.onSurface,
+    marginBottom: 20,
   },
   textArea: {
-    minHeight: 100,
+    minHeight: 96,
     textAlignVertical: 'top',
   },
   hint: {
     fontSize: 12,
-    color: '#888',
-    marginTop: 4,
-    marginBottom: 8,
+    color: M3.onSurfaceVariant,
+    marginTop: -8,
+    marginBottom: 12,
   },
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: 16,
+    backgroundColor: M3.surfaceContainerHigh,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    padding: 14,
-    backgroundColor: '#FAFAFA',
-    minHeight: 52,
+    borderColor: M3.outline,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 20,
   },
   dateButtonText: {
     flex: 1,
     fontSize: 16,
-    color: '#222',
-  },
-  dateButtonPlaceholder: {
-    color: '#BDBDBD',
-  },
-  clearButton: {
-    padding: 4,
+    color: M3.onSurface,
   },
   timeButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: 16,
+    backgroundColor: M3.surfaceContainerHigh,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    padding: 14,
-    backgroundColor: '#FAFAFA',
-    minHeight: 52,
+    borderColor: M3.outline,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 20,
   },
   timeButtonText: {
     flex: 1,
     fontSize: 16,
-    color: '#222',
+    color: M3.onSurface,
   },
-  timeButtonPlaceholder: {
-    color: '#BDBDBD',
+  placeholder: {
+    color: M3.onSurfaceVariant,
   },
-  clearTimeButton: {
+  clearBtn: {
     padding: 4,
-    marginLeft: 8,
   },
   optionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 20,
   },
   optionButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FAFAFA',
-  },
-  optionButtonActive: {
-    backgroundColor: '#7B61FF',
-    borderColor: '#7B61FF',
-  },
-  priorityHigh: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
-  },
-  priorityMedium: {
-    backgroundColor: '#FFE66D',
-    borderColor: '#FFE66D',
-  },
-  priorityLow: {
-    backgroundColor: '#6BCB77',
-    borderColor: '#6BCB77',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: M3.outline,
+    backgroundColor: M3.surfaceContainerHigh,
   },
   optionText: {
     fontSize: 14,
-    color: '#222',
-    fontWeight: '500',
-  },
-  optionTextActive: {
-    color: '#fff',
+    color: M3.onSurface,
     fontWeight: '600',
   },
-  checkboxContainer: {
+  optionTextActive: {
+    color: '#FFFFFF',
+  },
+  checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   checkbox: {
-    width: 24,
-    height: 24,
+    width: 26,
+    height: 26,
+    borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#7B61FF',
-    borderRadius: 6,
+    borderColor: M3.primary,
+    backgroundColor: M3.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-    backgroundColor: '#FAFAFA',
   },
-  checkmark: {
-    color: '#7B61FF',
-    fontSize: 16,
-    fontWeight: 'bold',
+  checkboxChecked: {
+    backgroundColor: M3.primary,
+    borderColor: M3.primary,
   },
   checkboxLabel: {
     fontSize: 16,
-    color: '#222',
+    color: M3.onSurface,
     fontWeight: '500',
   },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 20,
+    alignItems: 'center',
     gap: 12,
   },
-  deleteButton: {
+  deleteBtn: {
     paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    backgroundColor: '#FF7B7B',
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: M3.errorContainer,
     marginRight: 'auto',
   },
   deleteText: {
-    color: '#fff',
+    color: M3.onErrorContainer,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  cancelButton: {
+  cancelBtn: {
     paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
+    paddingHorizontal: 20,
   },
   cancelText: {
-    color: '#888',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: M3.onSurfaceVariant,
   },
-  saveButton: {
-    backgroundColor: '#7B61FF',
-    paddingVertical: 12,
+  saveBtn: {
+    backgroundColor: M3.primary,
+    borderRadius: 16,
     paddingHorizontal: 28,
-    borderRadius: 10,
-    minWidth: 80,
+    paddingVertical: 14,
+    minWidth: 88,
     alignItems: 'center',
-    shadowColor: '#7B61FF',
-    shadowOpacity: 0.3,
+    justifyContent: 'center',
+    shadowColor: M3.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
     elevation: 3,
   },
   saveText: {
-    color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: M3.onPrimary,
   },
 });
 

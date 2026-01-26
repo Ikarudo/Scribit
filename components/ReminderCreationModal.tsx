@@ -5,18 +5,31 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
   Alert,
 } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import DatePickerModal from './DatePickerModal';
 import TimePickerModal from './TimePickerModal';
+
+const M3 = {
+  surface: '#FFFFFF',
+  surfaceContainerHigh: '#F0EBF8',
+  primary: '#7C5DE8',
+  onPrimary: '#FFFFFF',
+  onSurface: '#1C1B22',
+  onSurfaceVariant: '#5C5868',
+  outline: '#D4CFE0',
+  scrim: 'rgba(28, 27, 34, 0.4)',
+};
 
 type ReminderCreationModalProps = {
   visible: boolean;
   onClose: () => void;
-  onSave: (data: { title: string; date: string; time: string }) => void;
+  onSave: (data: { title: string; date: string; time: string }) => void | Promise<void>;
 };
 
 export default function ReminderCreationModal({
@@ -24,11 +37,13 @@ export default function ReminderCreationModal({
   onClose,
   onSave,
 }: ReminderCreationModalProps) {
+  const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -38,7 +53,7 @@ export default function ReminderCreationModal({
     }
   }, [visible]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert('Error', 'Please enter a reminder title');
       return;
@@ -51,11 +66,20 @@ export default function ReminderCreationModal({
       Alert.alert('Error', 'Please select a time');
       return;
     }
-    onSave({ title: title.trim(), date, time });
-    onClose();
+    setSaving(true);
+    try {
+      await Promise.resolve(
+        onSave({ title: title.trim(), date, time })
+      );
+      onClose();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to create reminder. Please try again.');
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // Format date for display
   const formatDateDisplay = (dateStr: string): string => {
     try {
       const parts = dateStr.split('-');
@@ -63,25 +87,20 @@ export default function ReminderCreationModal({
       const month = parseInt(parts[1], 10) - 1;
       const day = parseInt(parts[2], 10);
       const dateObj = new Date(year, month, day);
-
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const monthName = months[dateObj.getMonth()];
       const today = new Date();
       const isToday = dateObj.toDateString() === today.toDateString();
       const isTomorrow = dateObj.toDateString() === new Date(today.getTime() + 86400000).toDateString();
-
       if (isToday) return 'Today';
       if (isTomorrow) return 'Tomorrow';
-      if (year === today.getFullYear()) {
-        return `${monthName} ${day}`;
-      }
+      if (year === today.getFullYear()) return `${monthName} ${day}`;
       return `${monthName} ${day}, ${year}`;
     } catch {
       return dateStr;
     }
   };
 
-  // Format time for display
   const formatTimeDisplay = (time24: string): string => {
     if (!time24 || !time24.includes(':')) return '';
     try {
@@ -97,68 +116,92 @@ export default function ReminderCreationModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <Text style={styles.title}>Create Reminder</Text>
+      <View style={StyleSheet.absoluteFill}>
+        <Pressable style={styles.overlay} onPress={onClose} />
+        <View
+          style={[
+            styles.sheet,
+            { paddingBottom: Math.max(insets.bottom, 20) + 16 },
+          ]}
+        >
+          <View style={styles.handle} />
+          <Text style={styles.title}>New reminder</Text>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.label}>Title *</Text>
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
+            <Text style={styles.label}>TITLE</Text>
             <TextInput
               style={styles.input}
               value={title}
               onChangeText={setTitle}
               placeholder="Reminder title"
-              placeholderTextColor="#BDBDBD"
+              placeholderTextColor={M3.onSurfaceVariant}
             />
 
-            <Text style={styles.label}>Due Date *</Text>
-            <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-              <FontAwesome name="calendar" size={16} color="#7B61FF" style={{ marginRight: 8 }} />
-              <Text style={[styles.dateButtonText, !date && styles.dateButtonPlaceholder]}>
+            <Text style={styles.label}>DATE</Text>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.7}
+            >
+              <Feather name="calendar" size={18} color={M3.primary} style={{ marginRight: 10 }} />
+              <Text style={[styles.dateButtonText, !date && styles.placeholder]}>
                 {date ? formatDateDisplay(date) : 'Select date'}
               </Text>
-              {date && (
+              {date ? (
                 <TouchableOpacity
                   onPress={(e) => {
                     e.stopPropagation();
                     setDate('');
                   }}
-                  style={styles.clearButton}
+                  style={styles.clearBtn}
+                  hitSlop={8}
                 >
-                  <FontAwesome name="times" size={14} color="#888" />
+                  <Feather name="x" size={18} color={M3.onSurfaceVariant} />
                 </TouchableOpacity>
-              )}
+              ) : null}
             </TouchableOpacity>
 
-            <Text style={styles.label}>Time *</Text>
+            <Text style={styles.label}>TIME</Text>
             <TouchableOpacity
               style={styles.timeButton}
               onPress={() => setShowTimePicker(true)}
+              activeOpacity={0.7}
             >
-              <FontAwesome name="clock-o" size={16} color="#7B61FF" style={{ marginRight: 8 }} />
-              <Text style={[styles.timeButtonText, !time && styles.timeButtonPlaceholder]}>
+              <Feather name="clock" size={18} color={M3.primary} style={{ marginRight: 10 }} />
+              <Text style={[styles.timeButtonText, !time && styles.placeholder]}>
                 {time ? formatTimeDisplay(time) : 'Select time'}
               </Text>
-              {time && (
+              {time ? (
                 <TouchableOpacity
                   onPress={(e) => {
                     e.stopPropagation();
                     setTime('');
                   }}
-                  style={styles.clearTimeButton}
+                  style={styles.clearBtn}
+                  hitSlop={8}
                 >
-                  <FontAwesome name="times" size={14} color="#888" />
+                  <Feather name="x" size={18} color={M3.onSurfaceVariant} />
                 </TouchableOpacity>
-              )}
+              ) : null}
             </TouchableOpacity>
           </ScrollView>
 
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={onClose}
+              disabled={saving}
+              activeOpacity={0.7}
+            >
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-              <Text style={styles.saveText}>Save</Text>
+            <TouchableOpacity
+              style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -189,123 +232,136 @@ export default function ReminderCreationModal({
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: M3.scrim,
   },
-  modal: {
-    width: '90%',
-    maxHeight: '80%',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: M3.surface,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    maxHeight: '88%',
     shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: M3.outline,
+    alignSelf: 'center',
+    marginBottom: 20,
   },
   title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#222',
+    fontSize: 24,
+    fontWeight: '800',
+    color: M3.onSurface,
+    letterSpacing: -0.3,
     marginBottom: 20,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#222',
-    marginTop: 12,
-    marginBottom: 8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: M3.onSurfaceVariant,
+    letterSpacing: 1.2,
+    marginBottom: 10,
+  },
+  scroll: {
+    maxHeight: 280,
+    marginBottom: 20,
   },
   input: {
+    borderRadius: 16,
+    backgroundColor: M3.surfaceContainerHigh,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    padding: 14,
+    borderColor: M3.outline,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     fontSize: 16,
-    backgroundColor: '#FAFAFA',
-    color: '#222',
-    minHeight: 52,
+    color: M3.onSurface,
+    marginBottom: 20,
   },
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: 16,
+    backgroundColor: M3.surfaceContainerHigh,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    padding: 14,
-    backgroundColor: '#FAFAFA',
-    minHeight: 52,
+    borderColor: M3.outline,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 20,
   },
   dateButtonText: {
     flex: 1,
     fontSize: 16,
-    color: '#222',
-  },
-  dateButtonPlaceholder: {
-    color: '#BDBDBD',
-  },
-  clearButton: {
-    padding: 4,
+    color: M3.onSurface,
   },
   timeButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: 16,
+    backgroundColor: M3.surfaceContainerHigh,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    padding: 14,
-    backgroundColor: '#FAFAFA',
-    minHeight: 52,
+    borderColor: M3.outline,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 8,
   },
   timeButtonText: {
     flex: 1,
     fontSize: 16,
-    color: '#222',
+    color: M3.onSurface,
   },
-  timeButtonPlaceholder: {
-    color: '#BDBDBD',
+  placeholder: {
+    color: M3.onSurfaceVariant,
   },
-  clearTimeButton: {
+  clearBtn: {
     padding: 4,
-    marginLeft: 8,
   },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 20,
+    alignItems: 'center',
     gap: 12,
   },
-  cancelButton: {
+  cancelBtn: {
     paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
+    paddingHorizontal: 20,
   },
   cancelText: {
-    color: '#888',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: M3.onSurfaceVariant,
   },
-  saveButton: {
-    backgroundColor: '#7B61FF',
-    paddingVertical: 12,
+  saveBtn: {
+    backgroundColor: M3.primary,
+    borderRadius: 16,
     paddingHorizontal: 28,
-    borderRadius: 10,
-    minWidth: 80,
+    paddingVertical: 14,
+    minWidth: 100,
     alignItems: 'center',
-    shadowColor: '#7B61FF',
-    shadowOpacity: 0.3,
+    justifyContent: 'center',
+    shadowColor: M3.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
     elevation: 3,
   },
+  saveBtnDisabled: {
+    opacity: 0.6,
+  },
   saveText: {
-    color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: M3.onPrimary,
   },
 });
-
-

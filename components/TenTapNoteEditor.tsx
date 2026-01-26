@@ -7,11 +7,36 @@ import React, {
   useState,
 } from 'react';
 import { View, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native';
-import { RichText, useEditorBridge } from '@10play/tentap-editor';
+import {
+  RichText,
+  useEditorBridge,
+  TenTapStartKit,
+  PlaceholderBridge,
+} from '@10play/tentap-editor';
 import { NotesToolbar } from '@/components/NotesToolbar';
 
 const PLACEHOLDER = 'Start typing your note...';
 const DEBOUNCE_MS = 1200;
+
+const SCRIBIT_PLACEHOLDER_CSS = `
+  /* Show placeholder for the entire empty editor */
+  .is-editor-empty:first-child::before {
+    color: #adb5bd;
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /* Show placeholder for ANY empty node (including list item paragraphs) */
+  .is-empty::before {
+    color: #adb5bd;
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+`;
 
 export interface TenTapNoteEditorRef {
   getHTML: () => Promise<string>;
@@ -40,6 +65,16 @@ const TenTapNoteEditor = forwardRef<TenTapNoteEditorRef, TenTapNoteEditorProps>(
     const [mounted, setMounted] = useState(false);
 
     const editor = useEditorBridge({
+      bridgeExtensions: [
+        ...TenTapStartKit,
+        // Make placeholders work inside templates (nested lists, empty paragraphs, etc)
+        // and add the missing CSS for empty nodes.
+        PlaceholderBridge.configureExtension({
+          placeholder,
+          includeChildren: true,
+          showOnlyCurrent: false,
+        }).configureCSS(SCRIBIT_PLACEHOLDER_CSS),
+      ],
       autofocus: false,
       avoidIosKeyboard: true,
       initialContent: initialContent || '',

@@ -60,7 +60,8 @@ function generateId() {
 // Configure notifications handler once
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -128,7 +129,8 @@ export const RemindersProvider = ({ children }: { children: ReactNode }) => {
     try {
       const [y, m, d] = dateStr.split('-').map(Number);
       const [hh, mm] = timeStr.split(':').map(Number);
-      return new Date(y, m - 1, d, hh, mm);
+      const dt = new Date(y, m - 1, d, hh, mm);
+      return Number.isNaN(dt.getTime()) ? null : dt;
     } catch {
       return null;
     }
@@ -137,6 +139,9 @@ export const RemindersProvider = ({ children }: { children: ReactNode }) => {
   const scheduleNotification = async (
     reminder: Omit<Reminder, 'id' | 'createdAt' | 'notificationId'>
   ): Promise<string | undefined> => {
+    // Scheduling isn't supported on web (and will throw).
+    if (Platform.OS === 'web') return undefined;
+
     // Respect mute by source
     if (sourceMute[reminder.source]) return undefined;
 
@@ -146,11 +151,27 @@ export const RemindersProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
+      if (Platform.OS === 'android') {
+        // Ensure the channel exists before we schedule into it.
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.DEFAULT,
+        });
+      }
+
+      // Expo SDK 54: be explicit about trigger type; include channelId on Android.
+      const trigger: Notifications.NotificationTriggerInput = {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: triggerDate,
+        ...(Platform.OS === 'android' ? { channelId: 'default' } : {}),
+      };
+
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
           title: reminder.title,
+          body: 'Reminder',
         },
-        trigger: triggerDate,
+        trigger,
       });
       return notificationId;
     } catch (error) {

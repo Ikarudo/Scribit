@@ -1,21 +1,90 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { FontAwesome } from '@expo/vector-icons';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  Pressable,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FontAwesome, Feather } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 import { useTasks, Task, TaskPriority } from '@/components/TasksProvider';
 import { useCalendar } from '@/components/CalendarProvider';
 import { useReminders } from '@/components/RemindersProvider';
 import TaskCreationModal from '@/components/TaskCreationModal';
 import { useAuth } from '@/components/useAuth';
 
+const LIST_PAD = 20;
+const springConfig = { damping: 14, stiffness: 380 };
+
 const PRIORITY_ORDER: TaskPriority[] = ['High', 'Medium', 'Low'];
 const PRIORITY_COLORS = {
-  High: '#FF6B6B',
-  Medium: '#FFE66D',
-  Low: '#6BCB77',
+  High: '#E85D5D',
+  Medium: '#E8B83C',
+  Low: '#5CB85C',
+};
+const PRIORITY_TINT = {
+  High: '#FFF0EB',
+  Medium: '#FFF8E8',
+  Low: '#E8F8F2',
 };
 
+const M3 = {
+  background: '#f2edf8',
+  surface: '#FFFFFF',
+  primary: '#7C5DE8',
+  primaryContainer: '#E8E0FC',
+  onPrimary: '#FFFFFF',
+  onSurface: '#1C1B22',
+  onSurfaceVariant: '#5C5868',
+  outline: '#D4CFE0',
+  outlineVariant: '#E6E1ED',
+  surfaceContainerHighest: '#EAE4F5',
+  errorContainer: '#FFEBEE',
+  onErrorContainer: '#b85757',
+  tint: ['#F0EBFF', '#E8F8F2', '#FFF0EB', '#E8F0FF', '#f2e6f5', '#f9ead6'],
+};
+
+function PressableScale({
+  children,
+  onPress,
+  style,
+  contentStyle,
+}: {
+  children: React.ReactNode;
+  onPress?: () => void;
+  style?: object;
+  contentStyle?: object;
+}) {
+  const scale = useSharedValue(1);
+  const s = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => {
+        scale.value = withSpring(0.96, springConfig);
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, springConfig);
+      }}
+      style={style}
+    >
+      <Animated.View style={[s, contentStyle]}>{children}</Animated.View>
+    </Pressable>
+  );
+}
+
 export default function TasksScreen() {
+  const insets = useSafeAreaInsets();
   const { loading: authLoading } = useAuth();
   const { tasks, loading, createTask, updateTask, deleteTask, toggleTaskComplete } = useTasks();
   const { createEvent, deleteEvent } = useCalendar();
@@ -23,37 +92,25 @@ export default function TasksScreen() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | undefined>(undefined);
 
-  // Group tasks by priority
   const groupedTasks = tasks.reduce((groups, task) => {
-    const priority = task.priority;
-    if (!groups[priority]) {
-      groups[priority] = [];
-    }
-    groups[priority].push(task);
+    const p = task.priority;
+    if (!groups[p]) groups[p] = [];
+    groups[p].push(task);
     return groups;
   }, {} as Record<TaskPriority, Task[]>);
 
-  // Sort tasks within each priority group by due date (earliest first), then by creation date
-  PRIORITY_ORDER.forEach(priority => {
-    if (groupedTasks[priority]) {
-      groupedTasks[priority].sort((a, b) => {
-        // Completed tasks go to the bottom
-        if (a.completed !== b.completed) {
-          return a.completed ? 1 : -1;
-        }
-        // Then sort by due date
-        if (a.dueDate && b.dueDate) {
-          return a.dueDate.localeCompare(b.dueDate);
-        }
+  PRIORITY_ORDER.forEach((p) => {
+    if (groupedTasks[p]) {
+      groupedTasks[p].sort((a, b) => {
+        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
         if (a.dueDate) return -1;
         if (b.dueDate) return 1;
-        // Finally by creation date (newest first)
         return b.createdAt - a.createdAt;
       });
     }
   });
 
-  // Format date for display
   const formatDate = (dateStr: string): string => {
     if (!dateStr) return '';
     try {
@@ -66,59 +123,47 @@ export default function TasksScreen() {
       const today = new Date();
       const isToday = date.toDateString() === today.toDateString();
       const isTomorrow = date.toDateString() === new Date(today.getTime() + 86400000).toDateString();
-      
       if (isToday) return 'Today';
       if (isTomorrow) return 'Tomorrow';
-      if (date.getFullYear() === today.getFullYear()) {
-        return `${month} ${day}`;
-      }
+      if (date.getFullYear() === today.getFullYear()) return `${month} ${day}`;
       return `${month} ${day}, ${year}`;
-    } catch (error) {
+    } catch {
       return '';
     }
   };
 
-  // Format time for display (convert 24-hour to 12-hour with AM/PM)
   const formatTime = (time24: string): string => {
-    if (!time24 || !time24.includes(':')) {
-      return '';
-    }
+    if (!time24 || !time24.includes(':')) return '';
     try {
       const [hours, minutes] = time24.split(':').map(Number);
       if (isNaN(hours) || isNaN(minutes)) return '';
       const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
       const ampm = hours >= 12 ? 'PM' : 'AM';
       return `${hour12}:${String(minutes).padStart(2, '0')} ${ampm}`;
-    } catch (error) {
+    } catch {
       return '';
     }
   };
 
-  // Check if date is today
   const isDateToday = (dateStr: string): boolean => {
     if (!dateStr) return false;
     try {
-      const date = new Date(dateStr);
-      const today = new Date();
-      return date.toDateString() === today.toDateString();
-    } catch (error) {
+      return new Date(dateStr).toDateString() === new Date().toDateString();
+    } catch {
       return false;
     }
   };
 
-  // Handle create new task
   const handleCreateTask = () => {
     setSelectedTask(undefined);
     setShowTaskModal(true);
   };
 
-  // Handle edit task
   const handleEditTask = (task: Task) => {
     setSelectedTask(task);
     setShowTaskModal(true);
   };
 
-  // Handle save task
   const handleSaveTask = async (
     taskData: Omit<Task, 'id' | 'createdAt'>,
     options?: { createReminder?: boolean }
@@ -128,19 +173,14 @@ export default function TasksScreen() {
         !!options?.createReminder && !!taskData.dueDate && !!taskData.dueTime;
 
       if (selectedTask) {
-        // If updating and calendar event exists, delete old one first
         if (selectedTask.calendarEventId) {
           try {
             await deleteEvent(selectedTask.calendarEventId);
-          } catch (error) {
-            console.error('Error deleting old calendar event:', error);
+          } catch (e) {
+            console.error(e);
           }
         }
-
-        // Update existing task
-        let calendarEventId = undefined;
-        
-        // If due date is provided and not today, create new calendar event
+        let calendarEventId: string | undefined;
         if (taskData.dueDate && !isDateToday(taskData.dueDate)) {
           try {
             calendarEventId = await createEvent({
@@ -151,13 +191,11 @@ export default function TasksScreen() {
               color: PRIORITY_COLORS[taskData.priority],
               eventType: 'Assignment',
             });
-          } catch (error) {
-            console.error('Error creating calendar event for task:', error);
+          } catch (e) {
+            console.error(e);
           }
         }
-
         await updateTask(selectedTask.id, { ...taskData, calendarEventId });
-
         if (shouldCreateReminder) {
           await createReminderForTask({
             ...selectedTask,
@@ -166,10 +204,7 @@ export default function TasksScreen() {
           });
         }
       } else {
-        // Create new task
-        let calendarEventId = undefined;
-        
-        // If due date is provided and not today, add to calendar
+        let calendarEventId: string | undefined;
         if (taskData.dueDate && !isDateToday(taskData.dueDate)) {
           try {
             calendarEventId = await createEvent({
@@ -180,17 +215,12 @@ export default function TasksScreen() {
               color: PRIORITY_COLORS[taskData.priority],
               eventType: 'Assignment',
             });
-          } catch (error) {
-            console.error('Error creating calendar event for task:', error);
-            // Don't fail the task creation if calendar event fails
+          } catch (e) {
+            console.error(e);
           }
         }
-
         await createTask({ ...taskData, calendarEventId });
-
         if (shouldCreateReminder) {
-          // We don't have the generated id here, so refresh from tasks state is needed
-          // Instead, just let the reminder be tied by title/date/time without sourceId.
           await createReminderForTask({
             id: 'temp',
             name: taskData.name,
@@ -204,199 +234,227 @@ export default function TasksScreen() {
           });
         }
       }
-    } catch (error) {
+    } catch (e) {
       Alert.alert('Error', 'Failed to save task. Please try again.');
-      console.error('Error saving task:', error);
+      console.error(e);
     }
   };
 
-  // Handle delete task
   const handleDeleteTask = (taskId: string, showConfirmation: boolean = true) => {
     const performDelete = async () => {
       try {
-        // Find the task to get its calendar event ID
-        const task = tasks.find(t => t.id === taskId);
-        
-        // Delete associated calendar event if it exists
+        const task = tasks.find((t) => t.id === taskId);
         if (task?.calendarEventId) {
           try {
             await deleteEvent(task.calendarEventId);
-          } catch (error) {
-            console.error('Error deleting calendar event:', error);
-            // Continue with task deletion even if calendar event deletion fails
+          } catch (e) {
+            console.error(e);
           }
         }
-
         await deleteTask(taskId);
         if (showConfirmation) {
           setShowTaskModal(false);
           setSelectedTask(undefined);
         }
-      } catch (error) {
+      } catch (e) {
         Alert.alert('Error', 'Failed to delete task. Please try again.');
-        console.error('Error deleting task:', error);
+        console.error(e);
       }
     };
-
     if (showConfirmation) {
-      Alert.alert(
-        'Delete Task',
-        'Are you sure you want to delete this task?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: performDelete,
-          },
-        ]
-      );
+      Alert.alert('Delete Task', 'Are you sure you want to delete this task?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: performDelete },
+      ]);
     } else {
       performDelete();
     }
   };
 
-  // Handle toggle complete
   const handleToggleComplete = async (taskId: string) => {
     try {
       await toggleTaskComplete(taskId);
-    } catch (error) {
+    } catch (e) {
       Alert.alert('Error', 'Failed to update task. Please try again.');
-      console.error('Error toggling task complete:', error);
+      console.error(e);
     }
   };
 
-  // Handle change priority
   const handleChangePriority = async (task: Task, newPriority: TaskPriority) => {
     try {
       await updateTask(task.id, { priority: newPriority });
-    } catch (error) {
+    } catch (e) {
       Alert.alert('Error', 'Failed to update priority. Please try again.');
-      console.error('Error changing priority:', error);
+      console.error(e);
     }
   };
 
   if (authLoading || loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading tasks...</Text>
+      <View style={[styles.container, { backgroundColor: M3.background }]}>
+        <View style={styles.loadingRoot}>
+          <Text style={[styles.loadingText, { color: M3.onSurfaceVariant }]}>
+            Loading tasks…
+          </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.completed).length;
+  const completedTasks = tasks.filter((t) => t.completed).length;
+  const scrollBottom = Math.max(insets.bottom, 24) + 90;
+  const scrollTop = 24 + insets.top;
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Tasks</Text>
-        <TouchableOpacity style={styles.addButton} onPress={handleCreateTask}>
-          <FontAwesome name="plus" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
+    <View style={[styles.container, { backgroundColor: M3.background }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: scrollTop, paddingBottom: scrollBottom },
+        ]}
+      >
+        <Text style={styles.headline}>Get it done</Text>
+        {totalTasks > 0 && (
+          <View style={styles.statsChip}>
+            <Feather name="check-circle" size={16} color={M3.primary} />
+            <Text style={styles.statsChipText}>
+              {completedTasks} of {totalTasks} completed
+            </Text>
+          </View>
+        )}
 
-      {/* Stats */}
-      {totalTasks > 0 && (
-        <View style={styles.statsContainer}>
-          <Text style={styles.statsText}>
-            {completedTasks} of {totalTasks} completed
-          </Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.sectionTitle}>Tasks</Text>
+          <PressableScale
+            onPress={handleCreateTask}
+            style={styles.addWrap}
+            contentStyle={styles.addBtn}
+          >
+            <Feather name="plus" size={20} color={M3.onPrimary} />
+            <Text style={styles.addText}>New task</Text>
+          </PressableScale>
         </View>
-      )}
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Tasks grouped by priority */}
         {PRIORITY_ORDER.map((priority) => {
           const priorityTasks = groupedTasks[priority] || [];
           if (priorityTasks.length === 0) return null;
 
+          const tint = PRIORITY_TINT[priority];
+          const color = PRIORITY_COLORS[priority];
+
           return (
-            <View key={priority} style={styles.prioritySection}>
+            <View key={priority} style={styles.priorityBlock}>
               <View style={styles.priorityHeader}>
-                <View style={[styles.priorityIndicator, { backgroundColor: PRIORITY_COLORS[priority] }]} />
-                <Text style={styles.priorityTitle}>{priority} Priority</Text>
-                <Text style={styles.priorityCount}>({priorityTasks.length})</Text>
+                <View style={[styles.priorityDot, { backgroundColor: color }]} />
+                <Text style={styles.priorityLabel}>{priority} priority</Text>
+                <Text style={styles.priorityCount}>{priorityTasks.length}</Text>
               </View>
 
               {priorityTasks.map((task) => (
-                <TouchableOpacity
+                <PressableScale
                   key={task.id}
-                  style={[styles.taskItem, task.completed && styles.taskItemCompleted]}
                   onPress={() => handleEditTask(task)}
+                  style={styles.taskWrap}
+                  contentStyle={[
+                    styles.taskCard,
+                    { backgroundColor: tint },
+                    task.completed && styles.taskCardCompleted,
+                  ]}
                 >
                   <TouchableOpacity
                     style={[styles.checkbox, task.completed && styles.checkboxChecked]}
                     onPress={() => handleToggleComplete(task.id)}
+                    hitSlop={8}
                   >
-                    {task.completed && <FontAwesome name="check" size={14} color="#fff" />}
+                    {task.completed && (
+                      <Feather name="check" size={14} color={M3.onPrimary} />
+                    )}
                   </TouchableOpacity>
-                  
-                  <View style={styles.taskContent}>
-                    <Text style={[styles.taskName, task.completed && styles.taskNameCompleted]}>
+                  <View style={styles.taskBody}>
+                    <Text
+                      style={[styles.taskName, task.completed && styles.taskNameCompleted]}
+                      numberOfLines={2}
+                    >
                       {task.name}
                     </Text>
-                    {task.description && (
-                      <Text style={[styles.taskDescription, task.completed && styles.taskDescriptionCompleted]} numberOfLines={2}>
+                    {task.description ? (
+                      <Text
+                        style={[styles.taskDesc, task.completed && styles.taskDescCompleted]}
+                        numberOfLines={2}
+                      >
                         {task.description}
                       </Text>
-                    )}
-                    {task.dueDate && (
+                    ) : null}
+                    {task.dueDate ? (
                       <View style={styles.taskMeta}>
-                        <FontAwesome name="calendar" size={12} color="#888" />
-                        <Text style={[styles.taskDueDate, task.completed && styles.taskDueDateCompleted]}>
+                        <Feather name="calendar" size={12} color={M3.onSurfaceVariant} />
+                        <Text
+                          style={[styles.taskMetaText, task.completed && styles.taskMetaCompleted]}
+                        >
                           {formatDate(task.dueDate)}
                         </Text>
-                        {task.dueTime && (
+                        {task.dueTime ? (
                           <>
-                            <FontAwesome name="clock-o" size={12} color="#888" style={{ marginLeft: 12 }} />
-                            <Text style={[styles.taskDueDate, task.completed && styles.taskDueDateCompleted]}>
+                            <Feather
+                              name="clock"
+                              size={12}
+                              color={M3.onSurfaceVariant}
+                              style={{ marginLeft: 12 }}
+                            />
+                            <Text
+                              style={[
+                                styles.taskMetaText,
+                                task.completed && styles.taskMetaCompleted,
+                              ]}
+                            >
                               {formatTime(task.dueTime)}
                             </Text>
                           </>
-                        )}
+                        ) : null}
                       </View>
-                    )}
+                    ) : null}
                   </View>
-
                   <View style={styles.taskActions}>
                     <TouchableOpacity
-                      style={styles.priorityButton}
+                      style={styles.priorityBtn}
                       onPress={() => {
-                        const currentIndex = PRIORITY_ORDER.indexOf(task.priority);
-                        const nextIndex = (currentIndex + 1) % PRIORITY_ORDER.length;
-                        handleChangePriority(task, PRIORITY_ORDER[nextIndex]);
+                        const i = PRIORITY_ORDER.indexOf(task.priority);
+                        handleChangePriority(
+                          task,
+                          PRIORITY_ORDER[(i + 1) % PRIORITY_ORDER.length]
+                        );
                       }}
+                      hitSlop={8}
                     >
-                      <View style={[styles.priorityDot, { backgroundColor: PRIORITY_COLORS[task.priority] }]} />
+                      <View style={[styles.priorityDotSmall, { backgroundColor: color }]} />
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.deleteButton}
+                      style={styles.deleteBtn}
                       onPress={() => handleDeleteTask(task.id, true)}
+                      hitSlop={8}
                     >
-                      <FontAwesome name="trash" size={16} color="#FF7B7B" />
+                      <Feather name="trash-2" size={16} color={M3.onErrorContainer} />
                     </TouchableOpacity>
                   </View>
-                </TouchableOpacity>
+                </PressableScale>
               ))}
             </View>
           );
         })}
 
-        {/* Empty State */}
         {totalTasks === 0 && (
-          <View style={styles.emptyContainer}>
-            <FontAwesome name="check-square-o" size={48} color="#E0E0E0" />
-            <Text style={styles.emptyText}>No tasks yet</Text>
-            <Text style={styles.emptySubtext}>Tap the + button to create your first task</Text>
+          <View style={styles.emptyRoot}>
+            <View style={styles.emptyIconWrap}>
+              <Feather name="check-square" size={44} color={M3.outlineVariant} />
+            </View>
+            <Text style={styles.emptyTitle}>No tasks yet</Text>
+            <Text style={styles.emptySub}>Tap “New task” to add your first one</Text>
           </View>
         )}
       </ScrollView>
 
-      {/* Task Creation Modal */}
       <TaskCreationModal
         visible={showTaskModal}
         onClose={() => {
@@ -404,185 +462,216 @@ export default function TasksScreen() {
           setSelectedTask(undefined);
         }}
         onSave={handleSaveTask}
-        onDelete={selectedTask ? (taskId) => handleDeleteTask(taskId, true) : undefined}
+        onDelete={selectedTask ? (id) => handleDeleteTask(id, true) : undefined}
         initialTask={selectedTask}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
-  loadingContainer: {
+  loadingRoot: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
     fontSize: 16,
-    color: '#888',
   },
-  header: {
+  scrollContent: {
+    paddingHorizontal: LIST_PAD,
+  },
+  headline: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: M3.onSurface,
+    letterSpacing: -0.5,
+    marginBottom: 12,
+  },
+  statsChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: M3.primaryContainer,
+    marginBottom: 24,
+  },
+  statsChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: M3.primary,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 8,
+    marginBottom: 18,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#222',
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: M3.onSurface,
   },
-  addButton: {
-    backgroundColor: '#7B61FF',
-    borderRadius: 26,
-    width: 48,
-    height: 48,
+  addWrap: {
+    alignSelf: 'flex-start',
+  },
+  addBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#7B61FF',
-    shadowOpacity: 0.3,
+    backgroundColor: M3.primary,
+    borderRadius: 28,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 8,
+    shadowColor: M3.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  statsContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginBottom: 8,
+  addText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: M3.onPrimary,
   },
-  statsText: {
-    fontSize: 14,
-    color: '#888',
-    fontWeight: '500',
-  },
-  prioritySection: {
-    marginHorizontal: 16,
-    marginBottom: 20,
+  priorityBlock: {
+    marginBottom: 24,
   },
   priorityHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+    gap: 8,
   },
-  priorityIndicator: {
-    width: 4,
-    height: 20,
-    borderRadius: 2,
-    marginRight: 8,
+  priorityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-  priorityTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#222',
+  priorityLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: M3.onSurface,
   },
   priorityCount: {
     fontSize: 14,
-    color: '#888',
-    marginLeft: 8,
+    fontWeight: '600',
+    color: M3.onSurfaceVariant,
   },
-  taskItem: {
+  taskWrap: {
+    width: '100%',
+    marginBottom: 10,
+  },
+  taskCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F7F8FA',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 14,
-    marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: M3.outline,
+    overflow: 'hidden',
   },
-  taskItemCompleted: {
-    opacity: 0.6,
-    backgroundColor: '#F0F0F0',
+  taskCardCompleted: {
+    opacity: 0.75,
   },
   checkbox: {
-    width: 24,
-    height: 24,
+    width: 26,
+    height: 26,
+    borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#7B61FF',
-    borderRadius: 6,
+    borderColor: M3.primary,
+    backgroundColor: M3.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-    backgroundColor: '#FAFAFA',
+    marginRight: 14,
   },
   checkboxChecked: {
-    backgroundColor: '#7B61FF',
-    borderColor: '#7B61FF',
+    backgroundColor: M3.primary,
+    borderColor: M3.primary,
   },
-  taskContent: {
+  taskBody: {
     flex: 1,
+    minWidth: 0,
   },
   taskName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#222',
-    marginBottom: 4,
+    fontWeight: '700',
+    color: M3.onSurface,
+    marginBottom: 2,
   },
   taskNameCompleted: {
     textDecorationLine: 'line-through',
-    color: '#888',
+    color: M3.onSurfaceVariant,
   },
-  taskDescription: {
+  taskDesc: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 6,
+    color: M3.onSurfaceVariant,
+    marginBottom: 4,
   },
-  taskDescriptionCompleted: {
-    color: '#999',
+  taskDescCompleted: {
+    color: M3.outlineVariant,
   },
   taskMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
   },
-  taskDueDate: {
+  taskMetaText: {
     fontSize: 12,
-    color: '#888',
-    marginLeft: 6,
+    color: M3.onSurfaceVariant,
+    marginLeft: 4,
+    fontWeight: '500',
   },
-  taskDueDateCompleted: {
-    color: '#999',
+  taskMetaCompleted: {
+    color: M3.outlineVariant,
   },
   taskActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
-  priorityButton: {
+  priorityBtn: {
     padding: 4,
   },
-  priorityDot: {
+  priorityDotSmall: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: M3.surface,
   },
-  deleteButton: {
+  deleteBtn: {
     padding: 4,
   },
-  emptyContainer: {
+  emptyRoot: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
-    marginHorizontal: 16,
+    paddingVertical: 48,
   },
-  emptyText: {
+  emptyIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: M3.surfaceContainerHighest,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
     fontSize: 18,
-    color: '#888',
-    marginTop: 16,
-    fontWeight: '500',
+    fontWeight: '700',
+    color: M3.onSurface,
+    marginBottom: 6,
   },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#BDBDBD',
-    marginTop: 8,
-    textAlign: 'center',
+  emptySub: {
+    fontSize: 15,
+    color: M3.onSurfaceVariant,
+    fontWeight: '500',
   },
 });

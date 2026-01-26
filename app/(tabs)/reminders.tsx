@@ -1,20 +1,101 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { FontAwesome } from '@expo/vector-icons';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Switch,
+  Pressable,
+  Alert,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FontAwesome, Feather } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 import { useReminders, ReminderSource } from '@/components/RemindersProvider';
 import ReminderCreationModal from '@/components/ReminderCreationModal';
 import { useAuth } from '@/components/useAuth';
 
+const LIST_PAD = 20;
+const springConfig = { damping: 14, stiffness: 380 };
+
+const M3 = {
+  background: '#f2edf8',
+  surface: '#FFFFFF',
+  primary: '#7C5DE8',
+  primaryContainer: '#E8E0FC',
+  onPrimary: '#FFFFFF',
+  onSurface: '#1C1B22',
+  onSurfaceVariant: '#5C5868',
+  outline: '#D4CFE0',
+  outlineVariant: '#E6E1ED',
+  surfaceContainerHighest: '#EAE4F5',
+  errorContainer: '#FFEBEE',
+  onErrorContainer: '#b85757',
+  tint: ['#F0EBFF', '#E8F8F2', '#FFF0EB', '#E8F0FF', '#f2e6f5', '#f9ead6'],
+};
+
+const GROUP_CONFIG: Record<
+  ReminderSource,
+  { title: string; icon: string; tintKey: number }
+> = {
+  calendar: { title: 'From Calendar', icon: 'calendar', tintKey: 0 },
+  task: { title: 'From Tasks', icon: 'check-square', tintKey: 1 },
+  manual: { title: 'Created Here', icon: 'bell', tintKey: 2 },
+};
+
+function PressableScale({
+  children,
+  onPress,
+  style,
+  contentStyle,
+}: {
+  children: React.ReactNode;
+  onPress?: () => void;
+  style?: object;
+  contentStyle?: object;
+}) {
+  const scale = useSharedValue(1);
+  const s = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => {
+        scale.value = withSpring(0.96, springConfig);
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, springConfig);
+      }}
+      style={style}
+    >
+      <Animated.View style={[s, contentStyle]}>{children}</Animated.View>
+    </Pressable>
+  );
+}
+
 export default function RemindersScreen() {
+  const insets = useSafeAreaInsets();
   const { loading: authLoading } = useAuth();
-  const { reminders, loading, sourceMute, setSourceMute, deleteReminder } = useReminders();
+  const {
+    reminders,
+    loading,
+    sourceMute,
+    setSourceMute,
+    deleteReminder,
+    createReminder,
+  } = useReminders();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const grouped = {
-    calendar: reminders.filter(r => r.source === 'calendar'),
-    task: reminders.filter(r => r.source === 'task'),
-    manual: reminders.filter(r => r.source === 'manual'),
+    calendar: reminders.filter((r) => r.source === 'calendar'),
+    task: reminders.filter((r) => r.source === 'task'),
+    manual: reminders.filter((r) => r.source === 'manual'),
   };
 
   const formatDate = (dateStr: string): string => {
@@ -50,47 +131,81 @@ export default function RemindersScreen() {
     }
   };
 
-  const renderGroup = (source: ReminderSource, title: string, icon: string) => {
+  const handleCreateReminder = async (data: { title: string; date: string; time: string }) => {
+    try {
+      await createReminder({
+        title: data.title,
+        date: data.date,
+        time: data.time,
+        source: 'manual',
+        sourceId: undefined,
+      });
+    } catch (e) {
+      Alert.alert('Error', 'Failed to create reminder. Please try again.');
+      console.error(e);
+    }
+  };
+
+  const renderGroup = (source: ReminderSource) => {
     const data = grouped[source];
     if (data.length === 0) return null;
 
+    const config = GROUP_CONFIG[source];
     const muted = sourceMute[source];
+    const tint = M3.tint[config.tintKey % M3.tint.length];
 
     return (
-      <View style={styles.groupSection}>
-        <View style={styles.groupHeader}>
+      <View key={source} style={styles.groupBlock}>
+        <View style={[styles.groupHeader, { backgroundColor: tint }]}>
           <View style={styles.groupHeaderLeft}>
-            <FontAwesome name={icon as any} size={18} color="#7B61FF" style={{ marginRight: 8 }} />
-            <Text style={styles.groupTitle}>{title}</Text>
-            <Text style={styles.groupCount}>({data.length})</Text>
+            <View style={styles.groupIconWrap}>
+              <Feather
+                name={config.icon as 'calendar' | 'check-square' | 'bell'}
+                size={18}
+                color={M3.primary}
+              />
+            </View>
+            <Text style={styles.groupTitle}>{config.title}</Text>
+            <Text style={styles.groupCount}>{data.length}</Text>
           </View>
           <View style={styles.groupHeaderRight}>
             <Text style={styles.muteLabel}>{muted ? 'Muted' : 'Active'}</Text>
             <Switch
               value={muted}
-              onValueChange={(value) => setSourceMute(source, value)}
-              thumbColor={muted ? '#ccc' : '#7B61FF'}
-              trackColor={{ false: '#E0E0E0', true: '#C5C5C5' }}
+              onValueChange={(v) => setSourceMute(source, v)}
+              thumbColor={muted ? '#B0A8B8' : M3.primary}
+              trackColor={{ false: M3.outline, true: '#D4CFE0' }}
             />
           </View>
         </View>
 
-        {data.map(reminder => (
-          <View key={reminder.id} style={styles.reminderItem}>
-            <View style={styles.reminderContent}>
-              <Text style={styles.reminderTitle} numberOfLines={2}>{reminder.title}</Text>
+        {data.map((reminder) => (
+          <View
+            key={reminder.id}
+            style={[styles.reminderRow, { backgroundColor: M3.surface }]}
+          >
+            <View style={styles.reminderBody}>
+              <Text style={styles.reminderTitle} numberOfLines={2}>
+                {reminder.title}
+              </Text>
               <View style={styles.reminderMeta}>
-                <FontAwesome name="calendar" size={12} color="#888" />
+                <Feather name="calendar" size={12} color={M3.onSurfaceVariant} />
                 <Text style={styles.reminderMetaText}>{formatDate(reminder.date)}</Text>
-                <FontAwesome name="clock-o" size={12} color="#888" style={{ marginLeft: 12 }} />
+                <Feather
+                  name="clock"
+                  size={12}
+                  color={M3.onSurfaceVariant}
+                  style={{ marginLeft: 12 }}
+                />
                 <Text style={styles.reminderMetaText}>{formatTime(reminder.time)}</Text>
               </View>
             </View>
             <TouchableOpacity
-              style={styles.deleteButton}
+              style={styles.deleteBtn}
               onPress={() => deleteReminder(reminder.id)}
+              hitSlop={8}
             >
-              <FontAwesome name="trash" size={16} color="#FF7B7B" />
+              <Feather name="trash-2" size={16} color={M3.onErrorContainer} />
             </TouchableOpacity>
           </View>
         ))}
@@ -100,47 +215,62 @@ export default function RemindersScreen() {
 
   if (authLoading || loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading reminders...</Text>
+      <View style={[styles.container, { backgroundColor: M3.background }]}>
+        <View style={styles.loadingRoot}>
+          <Text style={[styles.loadingText, { color: M3.onSurfaceVariant }]}>
+            Loading reminders…
+          </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   const totalReminders = reminders.length;
+  const scrollBottom = Math.max(insets.bottom, 24) + 90;
+  const scrollTop = 24 + insets.top;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Reminders</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setShowCreateModal(true)}
-        >
-          <FontAwesome name="plus" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
+    <View style={[styles.container, { backgroundColor: M3.background }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: scrollTop, paddingBottom: scrollBottom },
+        ]}
+      >
+        <Text style={styles.headline}>Reminders</Text>
+        {totalReminders > 0 && (
+          <View style={styles.statsChip}>
+            <Feather name="bell" size={16} color={M3.primary} />
+            <Text style={styles.statsChipText}>
+              {totalReminders} active reminder{totalReminders === 1 ? '' : 's'}
+            </Text>
+          </View>
+        )}
 
-      {totalReminders > 0 ? (
-        <View style={styles.statsContainer}>
-          <Text style={styles.statsText}>
-            {totalReminders} active reminder{totalReminders === 1 ? '' : 's'}
-          </Text>
+        <View style={styles.headerRow}>
+          <PressableScale
+            onPress={() => setShowCreateModal(true)}
+            style={styles.addWrap}
+            contentStyle={styles.addBtn}
+          >
+            <Feather name="plus" size={20} color={M3.onPrimary} />
+            <Text style={styles.addText}>New reminder</Text>
+          </PressableScale>
         </View>
-      ) : null}
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {renderGroup('calendar', 'From Calendar', 'calendar')}
-        {renderGroup('task', 'From Tasks', 'check-square-o')}
-        {renderGroup('manual', 'Created Here', 'bell')}
+        {renderGroup('calendar')}
+        {renderGroup('task')}
+        {renderGroup('manual')}
 
         {totalReminders === 0 && (
-          <View style={styles.emptyContainer}>
-            <FontAwesome name="bell-o" size={48} color="#E0E0E0" />
-            <Text style={styles.emptyText}>No reminders yet</Text>
-            <Text style={styles.emptySubtext}>
-              Reminders from Calendar and Tasks will appear here, or tap + to create one.
+          <View style={styles.emptyRoot}>
+            <View style={styles.emptyIconWrap}>
+              <Feather name="bell" size={44} color={M3.outlineVariant} />
+            </View>
+            <Text style={styles.emptyTitle}>No reminders yet</Text>
+            <Text style={styles.emptySub}>
+              Reminders from Calendar and Tasks show up here, or tap “New reminder” to add one.
             </Text>
           </View>
         )}
@@ -149,131 +279,146 @@ export default function RemindersScreen() {
       <ReminderCreationModal
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onSave={async ({ title, date, time }) => {
-          // Manual reminders are scheduled through RemindersProvider
-          // via createReminder exposed through context. For simplicity,
-          // we call the hook function here using source 'manual'.
-          const { createReminder } = useReminders();
-          await createReminder({
-            title,
-            date,
-            time,
-            source: 'manual',
-            sourceId: undefined,
-          });
-        }}
+        onSave={handleCreateReminder}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
-  loadingContainer: {
+  loadingRoot: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
     fontSize: 16,
-    color: '#888',
   },
-  header: {
+  scrollContent: {
+    paddingHorizontal: LIST_PAD,
+  },
+  headline: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: M3.onSurface,
+    letterSpacing: -0.5,
+    marginBottom: 12,
+  },
+  statsChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: M3.primaryContainer,
+    marginBottom: 24,
+  },
+  statsChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: M3.primary,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 8,
+    marginBottom: 18,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#222',
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: M3.onSurface,
   },
-  addButton: {
-    backgroundColor: '#7B61FF',
-    borderRadius: 26,
-    width: 48,
-    height: 48,
+  addWrap: {
+    alignSelf: 'flex-start',
+  },
+  addBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#7B61FF',
-    shadowOpacity: 0.3,
+    backgroundColor: M3.primary,
+    borderRadius: 28,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 8,
+    shadowColor: M3.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  statsContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginBottom: 8,
+  addText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: M3.onPrimary,
   },
-  statsText: {
-    fontSize: 14,
-    color: '#888',
-    fontWeight: '500',
-  },
-  groupSection: {
-    marginHorizontal: 16,
-    marginBottom: 20,
-    backgroundColor: '#F7F8FA',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+  groupBlock: {
+    borderRadius: 20,
     overflow: 'hidden',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: M3.outline,
   },
   groupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
-    backgroundColor: '#EBEBEB',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   groupHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+  },
+  groupIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: M3.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: M3.onSurface,
+  },
+  groupCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: M3.onSurfaceVariant,
   },
   groupHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  groupTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#222',
-  },
-  groupCount: {
-    fontSize: 14,
-    color: '#888',
-    marginLeft: 8,
+    gap: 8,
   },
   muteLabel: {
     fontSize: 12,
-    color: '#888',
-    marginRight: 8,
+    fontWeight: '600',
+    color: M3.onSurfaceVariant,
   },
-  reminderItem: {
+  reminderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderTopWidth: 1,
-    borderTopColor: '#EDEDED',
-    backgroundColor: '#fff',
+    borderTopColor: M3.outlineVariant,
   },
-  reminderContent: {
+  reminderBody: {
     flex: 1,
+    minWidth: 0,
   },
   reminderTitle: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#222',
+    fontWeight: '700',
+    color: M3.onSurface,
     marginBottom: 4,
   },
   reminderMeta: {
@@ -282,29 +427,38 @@ const styles = StyleSheet.create({
   },
   reminderMetaText: {
     fontSize: 12,
-    color: '#888',
+    color: M3.onSurfaceVariant,
     marginLeft: 4,
-  },
-  deleteButton: {
-    padding: 4,
-    marginLeft: 8,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    marginHorizontal: 16,
-  },
-  emptyText: {
-    fontSize: 18,
-    color: '#888',
-    marginTop: 16,
     fontWeight: '500',
   },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#BDBDBD',
-    marginTop: 8,
+  deleteBtn: {
+    padding: 4,
+  },
+  emptyRoot: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+  },
+  emptyIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: M3.surfaceContainerHighest,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: M3.onSurface,
+    marginBottom: 6,
+  },
+  emptySub: {
+    fontSize: 15,
+    color: M3.onSurfaceVariant,
+    fontWeight: '500',
     textAlign: 'center',
+    paddingHorizontal: 24,
   },
 });
