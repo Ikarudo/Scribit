@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Alert, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
+import { Calendar, DateData } from 'react-native-calendars';
 import { useCalendar, CalendarEvent, EventOccurrence } from '@/components/CalendarProvider';
-import CalendarMonthView from '@/components/CalendarMonthView'; 
 import EventCreationModal from '@/components/EventCreationModal';
 import { useReminders } from '@/components/RemindersProvider';
 import { useAuth } from '@/components/useAuth';
@@ -21,11 +21,52 @@ export default function CalendarScreen() {
   const [viewMode, setViewMode] = useState<'month' | 'day'>('month');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth();
 
-  // Get events for current month (returns occurrences)
-  const monthEventOccurrences = getEventsForMonth(currentYear, currentMonth);
+  // Get events for current month (returns occurrences)
+  const monthEventOccurrences = getEventsForMonth(currentYear, currentMonth);
+
+  // Convert events to react-native-calendars format
+  const markedDates = useMemo(() => {
+    const marked: { [key: string]: { marked?: boolean; dots: Array<{ color: string }>; selected?: boolean; selectedColor?: string } } = {};
+    
+    // Group events by date
+    monthEventOccurrences.forEach((occurrence) => {
+      if (!occurrence || !occurrence.event) return;
+      const dateStr = occurrence.occurrenceDate;
+      if (!marked[dateStr]) {
+        marked[dateStr] = {
+          dots: [],
+        };
+      }
+      // Add dot for this event (limit to 3 dots per day)
+      if (marked[dateStr].dots && marked[dateStr].dots.length < 3) {
+        marked[dateStr].dots!.push({ color: occurrence.event.color });
+      }
+    });
+
+    // Mark today with special styling
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    if (marked[todayStr]) {
+      // Today has events - keep dots but add selection
+      marked[todayStr].selected = true;
+      marked[todayStr].selectedColor = '#F0EDFF';
+    } else {
+      // Today has no events - just mark as selected
+      marked[todayStr] = {
+        dots: [],
+        selected: true,
+        selectedColor: '#F0EDFF',
+      };
+    }
+
+    return marked;
+  }, [monthEventOccurrences]);
+
+  // Format current date for calendar
+  const currentDateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
 
   // Get events for today
   const getEventsForToday = (): EventOccurrence[] => {
@@ -73,26 +114,32 @@ export default function CalendarScreen() {
     setCollapsedGroups(newCollapsed);
   };
 
-  // Navigate to previous month
-  const goToPreviousMonth = () => {
-    setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
-  };
+  // Navigate to previous month
+  const goToPreviousMonth = () => {
+    setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
+  };
 
-  // Navigate to next month
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
-  };
+  // Navigate to next month
+  const goToNextMonth = () => {
+    setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
+  };
 
-  // Navigate to today
-  const goToToday = () => {
-    setCurrentDate(new Date());
-  };
+  // Navigate to today
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
 
-  // Handle date press from calendar - opens event creation modal
-  const handleDatePress = (date: Date) => {
-    setSelectedDate(date);
-    setShowEventModal(true);
-  };
+  // Handle date press from calendar - opens event creation modal
+  const handleDatePress = (day: DateData) => {
+    const date = new Date(day.year, day.month - 1, day.day);
+    setSelectedDate(date);
+    setShowEventModal(true);
+  };
+
+  // Handle month change in calendar
+  const handleMonthChange = (month: DateData) => {
+    setCurrentDate(new Date(month.year, month.month - 1, 1));
+  };
 
   // Handle create new event
   const handleCreateEvent = () => {
@@ -213,15 +260,51 @@ export default function CalendarScreen() {
           </TouchableOpacity>
         </View>
         
-        {/* Calendar Month View - Enlarged by reducing horizontal margins */}
-        <View style={styles.calendarContainer}>
-          <CalendarMonthView
-            year={currentYear}
-            month={currentMonth}
-            events={monthEventOccurrences}
-            onDatePress={handleDatePress}
-          />
-        </View>
+        {/* Calendar Month View - Using react-native-calendars */}
+        <View style={styles.calendarContainer}>
+          <Calendar
+            current={currentDateString}
+            onDayPress={handleDatePress}
+            onMonthChange={handleMonthChange}
+            markedDates={markedDates}
+            markingType="multi-dot"
+            theme={{
+              backgroundColor: '#ffffff',
+              calendarBackground: '#ffffff',
+              textSectionTitleColor: '#888',
+              selectedDayBackgroundColor: '#F0EDFF',
+              selectedDayTextColor: '#7B61FF',
+              todayTextColor: '#7B61FF',
+              dayTextColor: '#222',
+              textDisabledColor: '#E0E0E0',
+              dotColor: '#7B61FF',
+              selectedDotColor: '#7B61FF',
+              arrowColor: '#7B61FF',
+              monthTextColor: '#222',
+              textDayFontWeight: '500',
+              textMonthFontWeight: 'bold',
+              textDayHeaderFontWeight: '600',
+              textDayFontSize: 14,
+              textMonthFontSize: 22,
+              textDayHeaderFontSize: 12,
+              todayBackgroundColor: '#F0EDFF',
+              'stylesheet.calendar.header': {
+                week: {
+                  marginTop: 5,
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  paddingHorizontal: 12,
+                  paddingBottom: 8,
+                },
+              },
+            }}
+            style={styles.calendar}
+            enableSwipeMonths={true}
+            hideExtraDays={true}
+            firstDay={0}
+            hideArrows={true}
+          />
+        </View>
 
         {/* View Mode Toggle - Moved closer to calendar (marginTop: 0) */}
         <View style={styles.toggleContainer}>
@@ -393,12 +476,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#7B61FF',
   },
-  // Container to maximize calendar width/size
-  calendarContainer: {
-    // Reduced margin significantly to make the calendar wider
-    marginHorizontal: 4, 
-    marginBottom: 0, // Slight space before the toggle
-  },
+  // Container to maximize calendar width/size
+  calendarContainer: {
+    // Reduced margin significantly to make the calendar wider
+    marginHorizontal: 4, 
+    marginBottom: 0, // Slight space before the toggle
+  },
+  calendar: {
+    borderRadius: 12,
+    padding: 8,
+    backgroundColor: '#ffffff',
+    borderWidth: 0,
+  },
   toggleContainer: {
     flexDirection: 'row',
     marginHorizontal: 16,
