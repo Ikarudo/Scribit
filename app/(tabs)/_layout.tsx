@@ -21,9 +21,9 @@ function TabBarIcon(props: {
 export default function TabLayout() {
   return (
     <Tabs
+      tabBar={(props) => <CollapsibleTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBar: (props) => <CollapsibleTabBar {...props} />,
         tabBarActiveTintColor: TAB_BAR.active,
         tabBarInactiveTintColor: TAB_BAR.inactive,
         tabBarStyle: {

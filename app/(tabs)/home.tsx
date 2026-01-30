@@ -161,7 +161,6 @@ export default function HomeScreen() {
       setNewBookTitle('');
       setSelectedIcon('BookType 1 -Blue.png');
       setShowBookModal(false);
-      Alert.alert('Success', 'Book created successfully!');
     } catch (e) {
       console.error(e);
       Alert.alert('Error', 'Failed to create book. Please try again.');

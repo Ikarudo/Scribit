@@ -1,21 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// DEPRECATED: Firestore imports - kept for future removal
-// import { db } from '../FirebaseConfig';
-// import {
-//   collection,
-//   setDoc,
-//   updateDoc,
-//   deleteDoc,
-//   doc,
-//   getDocs,
-//   onSnapshot,
-//   serverTimestamp,
-//   query,
-//   where,
-//   addDoc,
-//   orderBy,
-// } from 'firebase/firestore';
 
 export type Book = {
   id: string;
@@ -53,9 +37,6 @@ interface NotesContextType {
   pinPage: (id: string, pinned: boolean) => Promise<void>;
   toggleBookFavorite: (id: string) => Promise<void>;
   refreshBooksAndPages: () => Promise<void>;
-  // DEPRECATED: Firestore sync functions - kept for API compatibility but are no-ops
-  syncLocalBooksToFirebase: () => Promise<void>;
-  syncLocalPagesToFirebase: () => Promise<void>;
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
@@ -82,8 +63,6 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [trackedBooks, setTrackedBooks] = useState<Set<string>>(new Set());
-  // DEPRECATED: Removed Firebase-specific tracking refs (deletedBookIdsRef, deletedPageIdsRef, etc.)
-  // These were used to prevent Firebase from re-adding deleted items
 
   // Load books and pages from AsyncStorage only (offline-only mode)
   useEffect(() => {
@@ -173,17 +152,6 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
     
     loadBooksAndPages();
   }, []);
-
-  // DEPRECATED: Firestore sync functions - now no-ops in offline-only mode
-  const syncLocalBooksToFirebase = async () => {
-    console.log('NotesProvider: syncLocalBooksToFirebase called (deprecated - offline-only mode)');
-    // No-op: App is now offline-only
-  };
-
-  const syncLocalPagesToFirebase = async () => {
-    console.log('NotesProvider: syncLocalPagesToFirebase called (deprecated - offline-only mode)');
-    // No-op: App is now offline-only
-  };
 
   // CRUD for books
   const createBook = async (title: string, icon?: string) => {
@@ -448,8 +416,6 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
         pinPage,
         toggleBookFavorite,
         refreshBooksAndPages,
-        syncLocalBooksToFirebase,
-        syncLocalPagesToFirebase,
       }}
     >
       {children}

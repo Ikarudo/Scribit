@@ -1,9 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { CalendarEvent } from './CalendarProvider';
 import { Task } from './TasksProvider';
+
+// Check if running in Expo Go (notifications have limitations)
+const isExpoGo = Constants.appOwnership === 'expo';
 
 export type ReminderSource = 'calendar' | 'task' | 'manual';
 
@@ -57,15 +61,20 @@ function generateId() {
   return Math.random().toString(36).substr(2, 9) + Date.now();
 }
 
-// Configure notifications handler once
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Configure notifications handler once (with Expo Go safeguard)
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+} catch (error) {
+  // Gracefully handle if notifications aren't available (e.g., in Expo Go)
+  console.warn('Could not set notification handler (may be running in Expo Go):', error);
+}
 
 export const RemindersProvider = ({ children }: { children: ReactNode }) => {
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -91,16 +100,23 @@ export const RemindersProvider = ({ children }: { children: ReactNode }) => {
             : { calendar: false, task: false, manual: false }
         );
 
-        const { status } = await Notifications.getPermissionsAsync();
-        if (status !== 'granted') {
-          await Notifications.requestPermissionsAsync();
-        }
+        // Only request permissions if not in Expo Go (Expo Go has notification limitations)
+        if (!isExpoGo) {
+          try {
+            const { status } = await Notifications.getPermissionsAsync();
+            if (status !== 'granted') {
+              await Notifications.requestPermissionsAsync();
+            }
 
-        if (Platform.OS === 'android') {
-          await Notifications.setNotificationChannelAsync('default', {
-            name: 'default',
-            importance: Notifications.AndroidImportance.DEFAULT,
-          });
+            if (Platform.OS === 'android') {
+              await Notifications.setNotificationChannelAsync('default', {
+                name: 'default',
+                importance: Notifications.AndroidImportance.DEFAULT,
+              });
+            }
+          } catch (notificationError) {
+            console.warn('Notification permissions not available (may be running in Expo Go):', notificationError);
+          }
         }
       } catch (error) {
         console.error('Error initializing reminders:', error);
@@ -142,6 +158,12 @@ export const RemindersProvider = ({ children }: { children: ReactNode }) => {
     // Scheduling isn't supported on web (and will throw).
     if (Platform.OS === 'web') return undefined;
 
+    // Expo Go has limitations with notifications - skip scheduling
+    if (isExpoGo) {
+      console.warn('Notifications not fully supported in Expo Go. Reminder will be saved but notification may not work.');
+      return undefined;
+    }
+
     // Respect mute by source
     if (sourceMute[reminder.source]) return undefined;
 
@@ -153,10 +175,15 @@ export const RemindersProvider = ({ children }: { children: ReactNode }) => {
     try {
       if (Platform.OS === 'android') {
         // Ensure the channel exists before we schedule into it.
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'default',
-          importance: Notifications.AndroidImportance.DEFAULT,
-        });
+        try {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'default',
+            importance: Notifications.AndroidImportance.DEFAULT,
+          });
+        } catch (channelError) {
+          console.warn('Could not set notification channel:', channelError);
+          // Continue anyway - channel might already exist
+        }
       }
 
       // Expo SDK 54: be explicit about trigger type; include channelId on Android.
@@ -175,7 +202,8 @@ export const RemindersProvider = ({ children }: { children: ReactNode }) => {
       });
       return notificationId;
     } catch (error) {
-      console.error('Error scheduling reminder notification:', error);
+      // Gracefully handle notification errors (common in Expo Go)
+      console.warn('Error scheduling reminder notification (may be running in Expo Go):', error);
       return undefined;
     }
   };
@@ -216,7 +244,8 @@ export const RemindersProvider = ({ children }: { children: ReactNode }) => {
         try {
           await Notifications.cancelScheduledNotificationAsync(notificationId);
         } catch (error) {
-          console.error('Error cancelling old notification:', error);
+          // Gracefully handle cancellation errors (common in Expo Go)
+          console.warn('Error cancelling old notification:', error);
         }
       }
       notificationId = await scheduleNotification(updatedBase);
@@ -234,7 +263,8 @@ export const RemindersProvider = ({ children }: { children: ReactNode }) => {
       try {
         await Notifications.cancelScheduledNotificationAsync(existing.notificationId);
       } catch (error) {
-        console.error('Error cancelling notification on delete:', error);
+        // Gracefully handle cancellation errors (common in Expo Go)
+        console.warn('Error cancelling notification on delete:', error);
       }
     }
     const updated = reminders.filter(r => r.id !== id);
@@ -256,7 +286,8 @@ export const RemindersProvider = ({ children }: { children: ReactNode }) => {
               try {
                 await Notifications.cancelScheduledNotificationAsync(r.notificationId);
               } catch (error) {
-                console.error('Error cancelling notification for mute:', error);
+                // Gracefully handle cancellation errors (common in Expo Go)
+                console.warn('Error cancelling notification for mute:', error);
               }
             }
             return { ...r, notificationId: undefined };

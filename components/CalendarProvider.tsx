@@ -63,10 +63,19 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
       try {
         const localEvents = await AsyncStorage.getItem(EVENTS_KEY);
         const parsedLocalEvents = localEvents ? JSON.parse(localEvents) : [];
-        
-        // Set state from local storage
-        setEvents(parsedLocalEvents);
-        console.log('CalendarProvider: Loaded', parsedLocalEvents.length, 'events from storage');
+
+        // Validate and clean events
+        const cleanedEvents = parsedLocalEvents.filter((event: any) => {
+          return event && 
+                typeof event.id === 'string' && 
+                typeof event.title === 'string' &&
+                typeof event.date === 'string' &&
+                typeof event.color === 'string' &&
+                typeof event.eventType === 'string';
+        });
+
+        setEvents(cleanedEvents);
+        console.log('CalendarProvider: Loaded', cleanedEvents.length, 'valid events');
       } catch (error) {
         console.error('Error loading events:', error);
         setEvents([]);
@@ -113,10 +122,19 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
     console.log('CalendarProvider: Event deleted');
   };
 
-  // Parse date string (YYYY-MM-DD) to Date object in local timezone
   const parseDateString = (dateStr: string): Date => {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day); // month is 0-indexed in Date constructor
+    if (!dateStr || typeof dateStr !== 'string') {
+      return new Date(); // Return current date as fallback
+    }
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) {
+      return new Date(); // Return current date as fallback
+    }
+    const [year, month, day] = parts.map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) {
+      return new Date(); // Return current date as fallback
+    }
+    return new Date(year, month - 1, day);
   };
 
   // Generate all occurrences of a recurring event for a given month (for display only)

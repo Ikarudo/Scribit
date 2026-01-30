@@ -1,8 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// DEPRECATED: Firestore imports - kept for future removal
-// import { db } from '../FirebaseConfig';
-// import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 
 export type UserProfile = {

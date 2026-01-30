@@ -1,15 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Alert, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { Calendar, DateData } from 'react-native-calendars';
 import { useCalendar, CalendarEvent, EventOccurrence } from '@/components/CalendarProvider';
 import EventCreationModal from '@/components/EventCreationModal';
 import { useReminders } from '@/components/RemindersProvider';
 import { useAuth } from '@/components/useAuth';
-
-const { width } = Dimensions.get('window');
-
 export default function CalendarScreen() {
   const { loading: authLoading } = useAuth();
   const { events, loading, createEvent, deleteEvent, getEventsForMonth } = useCalendar();
@@ -25,24 +22,27 @@ export default function CalendarScreen() {
   const currentMonth = currentDate.getMonth();
 
   // Get events for current month (returns occurrences)
-  const monthEventOccurrences = getEventsForMonth(currentYear, currentMonth);
+  const monthEventOccurrences = getEventsForMonth(currentYear, currentMonth) || [];
 
   // Convert events to react-native-calendars format
   const markedDates = useMemo(() => {
-    const marked: { [key: string]: { marked?: boolean; dots: Array<{ color: string }>; selected?: boolean; selectedColor?: string } } = {};
+  const marked: { [key: string]: { marked?: boolean; dots: Array<{ color: string }>; selected?: boolean; selectedColor?: string } } = {};
     
     // Group events by date
     monthEventOccurrences.forEach((occurrence) => {
       if (!occurrence || !occurrence.event) return;
       const dateStr = occurrence.occurrenceDate;
+      if (!dateStr || typeof dateStr !== 'string') return;
       if (!marked[dateStr]) {
         marked[dateStr] = {
+          marked: true,
           dots: [],
         };
       }
       // Add dot for this event (limit to 3 dots per day)
-      if (marked[dateStr].dots && marked[dateStr].dots.length < 3) {
-        marked[dateStr].dots!.push({ color: occurrence.event.color });
+      const color = occurrence.event.color;
+      if (marked[dateStr].dots && marked[dateStr].dots.length < 3 && color && typeof color === 'string') {
+        marked[dateStr].dots!.push({ color: color });
       }
     });
 
@@ -56,6 +56,7 @@ export default function CalendarScreen() {
     } else {
       // Today has no events - just mark as selected
       marked[todayStr] = {
+        marked: true,
         dots: [],
         selected: true,
         selectedColor: '#F0EDFF',
@@ -84,25 +85,28 @@ export default function CalendarScreen() {
   };
 
   // Sort occurrences by date and time
-  const sortedEvents = [...getDisplayEvents()].filter(occurrence => occurrence && occurrence.event).sort((a, b) => {
+  const sortedEvents = [...(getDisplayEvents() || [])].filter(occurrence => occurrence && occurrence.event).sort((a, b) => {
     const dateCompare = (a.occurrenceDate || '').localeCompare(b.occurrenceDate || '');
     if (dateCompare !== 0) return dateCompare;
     return (a.event.time || '').localeCompare(b.event.time || '');
   });
-
-  // Group events by event type
-  const groupedEvents = sortedEvents.reduce((groups, occurrence) => {
+// Group events by event type
+const groupedEvents: Record<string, EventOccurrence[]> = sortedEvents.reduce(
+  (groups, occurrence) => {
+  try {
     if (!occurrence || !occurrence.event) return groups;
-    const type = occurrence.event.eventType || 'Other';
-    // Ensure type is always a string
-    const eventType = typeof type === 'string' && type.trim() ? type : 'Other';
+    const type = occurrence.event.eventType;
+    const eventType = (type && typeof type === 'string' && type.trim()) ? type.trim() : 'Other';
     if (!groups[eventType]) {
       groups[eventType] = [];
     }
     groups[eventType].push(occurrence);
+return groups as Record<string, EventOccurrence[]>;
+  } catch (error) {
+    console.error('Error in groupedEvents reduce:', error);
     return groups;
-  }, {} as Record<string, EventOccurrence[]>);
-
+  }
+}, {} as Record<string, EventOccurrence[]>);
   // Toggle group collapse
   const toggleGroup = (eventType: string) => {
     const newCollapsed = new Set(collapsedGroups);
@@ -190,25 +194,21 @@ export default function CalendarScreen() {
       ]
     );
   };
-
-  // Format date for display
-  const formatDate = (dateStr: string | undefined): string => {
-    if (!dateStr || typeof dateStr !== 'string') return 'Invalid Date';
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return 'Invalid Date';
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const monthIndex = date.getMonth();
-      const month = months[monthIndex];
-      const day = date.getDate();
-      if (!month || !day || isNaN(day) || isNaN(monthIndex)) return 'Invalid Date';
-      return `${month} ${day}`;
-    } catch (error) {
-      return 'Invalid Date';
-    }
-  };
-
-  // Format time for display (convert 24-hour to 12-hour with AM/PM)
+const formatDate = (dateStr: string | undefined): string => {
+  if (!dateStr || typeof dateStr !== 'string') return 'Invalid Date';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthIndex = date.getMonth();
+    const month = months[monthIndex];
+    const day = date.getDate();
+    if (!month || !day || isNaN(day) || isNaN(monthIndex)) return 'Invalid Date';
+    return `${month} ${day}`;
+  } catch (error) {
+    return 'Invalid Date';
+  }
+};
   const formatTime = (time24: string | undefined): string => {
     if (!time24 || typeof time24 !== 'string' || !time24.includes(':')) {
       return '12:00 AM';
@@ -225,7 +225,6 @@ export default function CalendarScreen() {
       return '12:00 AM';
     }
   };
-
   if (authLoading || loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -235,184 +234,175 @@ export default function CalendarScreen() {
       </SafeAreaView>
     );
   }
-
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Calendar</Text>
-        <TouchableOpacity style={styles.addButton} onPress={handleCreateEvent}>
-          <FontAwesome name="plus" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Month Navigation - Streamlined Padding */}
-        <View style={styles.navigation}>
-          <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton}>
-            <FontAwesome name="chevron-left" size={20} color="#222" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={goToToday} style={styles.todayButton}>
-            <Text style={styles.todayText}>Today</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
-            <FontAwesome name="chevron-right" size={20} color="#222" />
-          </TouchableOpacity>
-        </View>
-        
-        {/* Calendar Month View - Using react-native-calendars */}
-        <View style={styles.calendarContainer}>
-          <Calendar
-            current={currentDateString}
-            onDayPress={handleDatePress}
-            onMonthChange={handleMonthChange}
-            markedDates={markedDates}
-            markingType="multi-dot"
-            theme={{
-              backgroundColor: '#ffffff',
-              calendarBackground: '#ffffff',
-              textSectionTitleColor: '#888',
-              selectedDayBackgroundColor: '#F0EDFF',
-              selectedDayTextColor: '#7B61FF',
-              todayTextColor: '#7B61FF',
-              dayTextColor: '#222',
-              textDisabledColor: '#E0E0E0',
-              dotColor: '#7B61FF',
-              selectedDotColor: '#7B61FF',
-              arrowColor: '#7B61FF',
-              monthTextColor: '#222',
-              textDayFontWeight: '500',
-              textMonthFontWeight: 'bold',
-              textDayHeaderFontWeight: '600',
-              textDayFontSize: 14,
-              textMonthFontSize: 22,
-              textDayHeaderFontSize: 12,
-              todayBackgroundColor: '#F0EDFF',
-              'stylesheet.calendar.header': {
-                week: {
-                  marginTop: 5,
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  paddingHorizontal: 12,
-                  paddingBottom: 8,
-                },
-              },
-            }}
-            style={styles.calendar}
-            enableSwipeMonths={true}
-            hideExtraDays={true}
-            firstDay={0}
-            hideArrows={true}
-          />
+return (
+  <SafeAreaView style={styles.container}>
+    <View style={styles.header}>
+      <Text style={styles.headerTitle}>Calendar</Text>
+      <TouchableOpacity style={styles.addButton} onPress={handleCreateEvent}>
+        <FontAwesome5 name="plus" size={20} color="#fff" />
+      </TouchableOpacity>
+    </View>
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <View style={styles.navigation}>
+        <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton}>
+          <FontAwesome5 name="chevron-left" size={20} color="#222" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={goToToday} style={styles.todayButton}>
+          <Text style={styles.todayText}>Today</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
+          <FontAwesome5 name="chevron-right" size={20} color="#222" />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.calendarContainer}>
+        <Calendar
+          current={currentDateString}
+          onDayPress={handleDatePress}
+          onMonthChange={handleMonthChange}
+          markedDates={markedDates}
+          markingType="multi-dot"
+          theme={{
+            backgroundColor: '#ffffff',
+            calendarBackground: '#ffffff',
+            textSectionTitleColor: '#888',
+            selectedDayBackgroundColor: '#F0EDFF',
+            selectedDayTextColor: '#7B61FF',
+            todayTextColor: '#7B61FF',
+            dayTextColor: '#222',
+            textDisabledColor: '#E0E0E0',
+            dotColor: '#7B61FF',
+            selectedDotColor: '#7B61FF',
+            arrowColor: '#7B61FF',
+            monthTextColor: '#222',
+            textDayFontWeight: '500',
+            textMonthFontWeight: '700',
+            textDayHeaderFontWeight: '600',
+            textDayFontSize: 14,
+            textMonthFontSize: 22,
+            textDayHeaderFontSize: 12,
+            todayBackgroundColor: '#F0EDFF',
+          }}
+          style={styles.calendar}
+          enableSwipeMonths={true}
+          hideExtraDays={true}
+          firstDay={0}
+          hideArrows={true}
+        />
+      </View>
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[styles.toggleButton, viewMode === 'month' ? styles.toggleButtonActive : null]}
+          onPress={() => setViewMode('month')}
+        >
+          <Text style={[styles.toggleText, viewMode === 'month' ? styles.toggleTextActive : null]}>
+            This Month
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleButton, viewMode === 'day' ? styles.toggleButtonActive : null]}
+          onPress={() => setViewMode('day')}
+        >
+          <Text style={[styles.toggleText, viewMode === 'day' ? styles.toggleTextActive : null]}>
+            Today
+          </Text>
+        </TouchableOpacity>
+      </View>
+      {sortedEvents.length > 0 ? (
+        <View style={styles.eventsSection}>
+          {Object.entries(groupedEvents).map(([eventType, occurrences]) => {
+            if (!Array.isArray(occurrences)) {
+              console.error('occurrences is not an array:', occurrences);
+              return null;
+            }
+            const isCollapsed = collapsedGroups.has(eventType);
+            const eventTypeString = String(eventType);
+            return (
+              <View key={eventTypeString} style={styles.eventGroup}>
+                <TouchableOpacity
+                  style={styles.groupHeader}
+                  onPress={() => toggleGroup(eventTypeString)}
+                >
+                  <Text style={styles.groupTitle}>{String(eventTypeString)}</Text>
+                  <View style={styles.groupHeaderRight}>
+                    <Text style={styles.groupCount}>{String(occurrences?.length ?? 0)}</Text>
+                    <View style={styles.chevronContainer}>
+                      <FontAwesome5
+                        name={isCollapsed ? 'chevron-down' : 'chevron-up'}
+                        size={16}
+                        color="#888"
+                      />
+                    </View>
+                  </View>
+                </TouchableOpacity>
+{!isCollapsed ? (
+  <View style={styles.groupContent}>
+    {occurrences.map((occurrence) => {
+      if (!occurrence || !occurrence.event || !occurrence.occurrenceKey) {
+        return null;
+      }
+      return (
+        <TouchableOpacity
+          key={occurrence.occurrenceKey}
+          style={styles.eventItem}
+          onLongPress={() => handleDeleteEvent(occurrence.event.id)}
+        >
+          <View style={[styles.eventColorBar, { backgroundColor: occurrence.event.color || '#7B61FF' }]} />
+          <View style={styles.eventContent}>
+            <View style={styles.eventHeader}>
+              <Text style={styles.eventTitle}>{String(occurrence.event.title || 'Untitled Event')}</Text>
+            </View>
+            <View style={styles.eventDetails}>
+              {viewMode === 'month' ? (
+                <View style={styles.eventDetailRow}>
+                  <FontAwesome5 name="calendar" size={12} color="#888" />
+                  <Text style={styles.eventDetailText}>{formatDate(occurrence.occurrenceDate)}</Text>
+                </View>
+              ) : null}
+              <View style={styles.eventDetailRow}>
+                <FontAwesome5 name="clock" size={12} color="#888" />
+                <Text style={styles.eventDetailText}>{formatTime(occurrence.event.time)}</Text>
+              </View>
+              {occurrence.event.repeat && occurrence.event.repeat !== 'None' ? (
+                <View style={styles.eventDetailRowWithMargin}>
+                  <FontAwesome5 name="redo-alt" size={12} color="#888" />
+                  <Text style={styles.eventDetailText}>{String(occurrence.event.repeat)}</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    })}
+  </View>
+) : null}
+              </View>
+            );
+          })}
         </View>
-
-        {/* View Mode Toggle - Moved closer to calendar (marginTop: 0) */}
-        <View style={styles.toggleContainer}>
-          <TouchableOpacity
-            style={[styles.toggleButton, viewMode === 'month' ? styles.toggleButtonActive : null]}
-            onPress={() => setViewMode('month')}
-          >
-            <Text style={[styles.toggleText, viewMode === 'month' ? styles.toggleTextActive : null]}>
-              This Month
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleButton, viewMode === 'day' ? styles.toggleButtonActive : null]}
-            onPress={() => setViewMode('day')}
-          >
-            <Text style={[styles.toggleText, viewMode === 'day' ? styles.toggleTextActive : null]}>
-              Today
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Events List - Moved closer to the toggle module */}
-        {sortedEvents.length > 0 ? (
-          <View style={styles.eventsSection}>
-            {Object.entries(groupedEvents).map(([eventType, occurrences]) => {
-              const isCollapsed = collapsedGroups.has(eventType);
-              return (
-                <View key={eventType} style={styles.eventGroup}>
-                  <TouchableOpacity
-                    style={styles.groupHeader}
-                    onPress={() => toggleGroup(eventType)}
-                  >
-                    <Text style={styles.groupTitle}>{typeof eventType === 'string' ? eventType : 'Other'}</Text>
-                    <View style={styles.groupHeaderRight}>
-                      <Text style={styles.groupCount}>{String(occurrences.length)}</Text>
-                      <FontAwesome
-                        name={isCollapsed ? 'chevron-down' : 'chevron-up'}
-                        size={16}
-                        color="#888"
-                        style={{ marginLeft: 8 }}
-                      />
-                    </View>
-                  </TouchableOpacity>
-                  {!isCollapsed && (
-                    <View style={styles.groupContent}>
-                      {occurrences.map((occurrence) => (
-                        <TouchableOpacity
-                          key={occurrence.occurrenceKey}
-                          style={styles.eventItem}
-                          onLongPress={() => handleDeleteEvent(occurrence.event.id)}
-                        >
-                          <View style={[styles.eventColorBar, { backgroundColor: occurrence.event.color }]} />
-                          <View style={styles.eventContent}>
-                            <View style={styles.eventHeader}>
-                              <Text style={styles.eventTitle}>{String(occurrence.event.title || 'Untitled Event')}</Text>
-                            </View>
-                            <View style={styles.eventDetails}>
-                              {viewMode === 'month' ? (
-                                <>
-                                  <FontAwesome name="calendar" size={12} color="#888" />
-                                  <Text style={styles.eventDetailText}>{formatDate(occurrence.occurrenceDate)}</Text>
-                                </>
-                              ) : null}
-                              <FontAwesome name="clock-o" size={12} color="#888" style={{ marginLeft: viewMode === 'month' ? 12 : 0 }} />
-                              <Text style={styles.eventDetailText}>{formatTime(occurrence.event.time)}</Text>
-                              {occurrence.event.repeat && occurrence.event.repeat !== 'None' ? (
-                                <>
-                                  <FontAwesome name="repeat" size={12} color="#888" style={{ marginLeft: 12 }} />
-                                  <Text style={styles.eventDetailText}>{String(occurrence.event.repeat || '')}</Text>
-                                </>
-                              ) : null}
-                            </View>
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <FontAwesome name="calendar-o" size={48} color="#E0E0E0" />
-            <Text style={styles.emptyText}>
-              {viewMode === 'day' ? 'No events today' : 'No events this month'}
-            </Text>
-            <Text style={styles.emptySubtext}>Tap a date on the calendar or the + button to create an event</Text>
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Event Creation Modal */}
-      <EventCreationModal
-        visible={showEventModal}
-        onClose={() => {
-          setShowEventModal(false);
-          setSelectedDate(undefined);
-          setSelectedEvent(undefined);
-        }}
-        onSave={handleSaveEvent}
-        initialDate={selectedDate}
-        initialEvent={selectedEvent}
-      />
-    </SafeAreaView>
-  );
+      ) : (
+        <View style={styles.emptyContainer}>
+          <FontAwesome5 name="calendar-alt" size={48} color="#E0E0E0" />
+          <Text style={styles.emptyText}>
+            {viewMode === 'day' ? 'No events today' : 'No events this month'}
+          </Text>
+          <Text style={styles.emptySubtext}>Tap a date on the calendar or the + button to create an event</Text>
+        </View>
+      )}
+    </ScrollView>
+     <EventCreationModal
+      visible={showEventModal}
+      onClose={() => {
+        setShowEventModal(false);
+        setSelectedDate(undefined);
+        setSelectedEvent(undefined);
+      }}
+      onSave={handleSaveEvent}
+      initialDate={selectedDate}
+      initialEvent={selectedEvent}
+    />
+  </SafeAreaView>
+);
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -437,7 +427,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#222',
   },
   addButton: {
@@ -449,7 +439,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: '#7B61FF',
     shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 2 } as any,
     shadowRadius: 4,
     elevation: 3,
   },
@@ -457,7 +447,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    // Adjusted padding to use the same minimal value for wider calendar
     paddingHorizontal: 12, 
     marginBottom: 8,
   },
@@ -469,18 +458,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: '#F7F8FA',
     borderRadius: 10,
-    // Streamlined look by removing explicit button style changes
   },
   todayText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#7B61FF',
   },
-  // Container to maximize calendar width/size
   calendarContainer: {
-    // Reduced margin significantly to make the calendar wider
     marginHorizontal: 4, 
-    marginBottom: 0, // Slight space before the toggle
+    marginBottom: 0,
   },
   calendar: {
     borderRadius: 12,
@@ -491,12 +477,11 @@ const styles = StyleSheet.create({
   toggleContainer: {
     flexDirection: 'row',
     marginHorizontal: 16,
-    marginTop: 0, // Moved right up against the calendar container
-    marginBottom: 10, // Moved closer to event list
+    marginTop: 0, 
+    marginBottom: 10,
     backgroundColor: '#F7F8FA',
     borderRadius: 12,
     padding: 4,
-    // Streamlined UI: No shadow/border added here
   },
   toggleButton: {
     flex: 1,
@@ -535,11 +520,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#EBEBEB', 
     borderBottomWidth: 1, 
     borderBottomColor: '#E0E0E0',
-    // Streamlined UI: Removed any unnecessary margin/padding
   },
   groupTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#222',
   },
   groupHeaderRight: {
@@ -553,7 +537,6 @@ const styles = StyleSheet.create({
   },
   groupContent: {
     padding: 8,
-    // Streamlined UI: Padding fine-tuned
   },
   eventItem: {
     flexDirection: 'row',
@@ -564,11 +547,10 @@ const styles = StyleSheet.create({
     elevation: 1, 
     shadowColor: '#000',
     shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 1 } as any,
     shadowRadius: 2,
     borderWidth: 1, 
     borderColor: '#F0F0F0',
-    // Streamlined UI: Subtle border/shadow added for clear separation
   },
   eventColorBar: {
     width: 5, 
@@ -593,7 +575,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 12,
-    marginLeft: 8,
+    marginLeft: 10,
   },
   eventTypeText: {
     fontSize: 11,
@@ -626,4 +608,20 @@ const styles = StyleSheet.create({
     color: '#BDBDBD',
     marginTop: 8,
   },
+  eventDetailRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  },
+  eventDetailRowWithMargin: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  chevronContainer: {
+    marginLeft: 8,
+  },
+  eventDetailRowConditional: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
 });
