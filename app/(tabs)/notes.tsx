@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, TextInput, Alert, Pressable, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FontAwesome, Feather } from '@expo/vector-icons';
+import { FontAwesome5, Feather } from '@expo/vector-icons';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useNotes, Book } from '@/components/NotesProvider';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -17,23 +17,52 @@ import {
   defaultTitleForTemplate,
 } from '@/components/noteTemplates';
 
-// Material 3 theme – matches home/tasks
+// Authentic Material 3 Light Theme Color Scheme
 const M3 = {
-  background: '#f2edf8',
-  surface: '#FFFFFF',
-  surfaceContainer: '#F8F4FF',
-  surfaceContainerHigh: '#F0EBF8',
-  surfaceContainerHighest: '#EAE4F5',
-  primary: '#7C5DE8',
-  primaryContainer: '#E8E0FC',
+  // Surface colors
+  background: '#FEF7FF',
+  surface: '#FEF7FF',
+  surfaceContainerLowest: '#FFFFFF',
+  surfaceContainerLow: '#F8F2FA',
+  surfaceContainer: '#F2ECF4',
+  surfaceContainerHigh: '#ECE6EE',
+  surfaceContainerHighest: '#E7E0E8',
+  
+  // Primary colors
+  primary: '#6750A4',
   onPrimary: '#FFFFFF',
-  onSurface: '#1C1B22',
-  onSurfaceVariant: '#5C5868',
-  outline: '#D4CFE0',
-  outlineVariant: '#E6E1ED',
-  errorContainer: '#FFEBEE',
-  onErrorContainer: '#b85757',
-  scrim: 'rgba(28, 27, 34, 0.4)',
+  primaryContainer: '#E9DDFF',
+  onPrimaryContainer: '#22005D',
+  
+  // Secondary colors
+  secondary: '#625B71',
+  onSecondary: '#FFFFFF',
+  secondaryContainer: '#E8DEF8',
+  onSecondaryContainer: '#1E192B',
+  
+  // Tertiary colors
+  tertiary: '#7E5260',
+  onTertiary: '#FFFFFF',
+  tertiaryContainer: '#FFD9E3',
+  onTertiaryContainer: '#31101D',
+  
+  // Text colors
+  onSurface: '#1D1B20',
+  onSurfaceVariant: '#49454E',
+  
+  // Outline colors
+  outline: '#7A757F',
+  outlineVariant: '#CAC4CF',
+  
+  // Error colors
+  error: '#BA1A1A',
+  onError: '#FFFFFF',
+  errorContainer: '#FFDAD6',
+  onErrorContainer: '#410002',
+  
+  // Other
+  scrim: 'rgba(0, 0, 0, 0.4)',
+  shadow: '#000000',
 };
 
 const springConfig = { damping: 14, stiffness: 380 };
@@ -119,8 +148,6 @@ export default function NotesScreen() {
   }, [currentBook, bookPages, selectedPageId]);
 
   // Save current page and switch to first page only when switching *books*.
-  // Must not depend on selectedPageId — otherwise selecting a different page
-  // re-runs this effect and overwrites selection back to first page.
   const prevBookIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!currentBook) return;
@@ -147,7 +174,6 @@ export default function NotesScreen() {
     } else {
       setSelectedPageId(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally only on book change; pages/selectedPageId/updatePage read from closure.
   }, [currentBook?.id]);
 
   // Handle book selection from router params
@@ -166,7 +192,7 @@ export default function NotesScreen() {
     }
   }, [showPageModal]);
 
-  // Dismiss keyboard when leaving notes tab – prevents keyboard from appearing when tapping tab bar
+  // Dismiss keyboard when leaving notes tab
   useFocusEffect(
     useCallback(() => {
       return () => Keyboard.dismiss();
@@ -188,19 +214,16 @@ export default function NotesScreen() {
       return;
     }
     
-    // Use the same logic as custom title - if no title provided, use timestamp
     let finalTitle = '';
     if (!finalTitle) {
       const now = new Date();
       const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
       
-      // Check if a page with this timestamp already exists
       const existingPagesWithTimestamp = bookPages.filter(page => 
         page.title.startsWith(timestamp)
       );
       
       if (existingPagesWithTimestamp.length > 0) {
-        // Find the highest number suffix
         const numbers = existingPagesWithTimestamp.map(page => {
           const match = page.title.match(new RegExp(`^${timestamp.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: (\\d+))?$`));
           return match ? (parseInt(match[1]) || 1) : 1;
@@ -316,7 +339,6 @@ export default function NotesScreen() {
 
   const handlePageLongPress = (pageId: string) => {
     setLongPressedPageId(pageId);
-    // Add a small delay to show visual feedback before showing alert
     setTimeout(() => {
       handleDeletePage(pageId);
     }, 100);
@@ -382,76 +404,90 @@ export default function NotesScreen() {
     );
   }
 
-  // Tab bar height (70) + margin (8) + buffer – prevents note editor from extending under tab bar
   const tabBarClearance = 30;
 
   return (
     <View style={[styles.container, { backgroundColor: M3.background, paddingBottom: insets.bottom + tabBarClearance }]}>
-      {/* Compact row: Books dropdown | + Book | Pages dropdown | + Page – no bar, minimal */}
-      <SafeAreaView edges={['top']} style={styles.headerRow}>
-        <View style={styles.compactRow}>
-          {/* Books dropdown */}
-          <View style={styles.dropdownWrapper}>
+      {/* Compact navigation bar - now with chip-style buttons */}
+      <SafeAreaView edges={['top']} style={styles.navBar}>
+        <View style={styles.navContent}>
+          {/* Book selector - now inline chip style */}
+          <TouchableOpacity
+            style={styles.navChip}
+            onPress={() => {
+              setShowPageDropdown(false);
+              setShowBookDropdown(!showBookDropdown);
+            }}
+            activeOpacity={0.7}
+          >
+            <Image
+              source={getBookIconSource(currentBook?.icon)}
+              style={styles.navChipIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.navChipText} numberOfLines={1}>
+              {currentBook?.title || 'Books'}
+            </Text>
+            <Feather name="chevron-down" size={16} color={M3.onSurfaceVariant} />
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.navDivider} />
+
+          {/* Page selector - now inline chip style */}
+          <TouchableOpacity
+            style={[styles.navChip, styles.navChipPage]}
+            onPress={() => {
+              setShowBookDropdown(false);
+              setShowPageDropdown(!showPageDropdown);
+            }}
+            activeOpacity={0.7}
+          >
+            <Feather name="file-text" size={16} color={M3.onSurfaceVariant} />
+            <Text style={styles.navChipText} numberOfLines={1}>
+              {selectedPage?.title || 'Pages'}
+            </Text>
+            <Feather name="chevron-down" size={16} color={M3.onSurfaceVariant} />
+          </TouchableOpacity>
+
+          {/* Action buttons */}
+          <View style={styles.navActions}>
             <TouchableOpacity
-              style={styles.compactDropdown}
-              onPress={() => {
-                setShowPageDropdown(false);
-                setShowBookDropdown(!showBookDropdown);
-              }}
-              activeOpacity={0.8}
+              style={styles.navIconBtn}
+              onPress={() => { handleCloseDropdowns(); setShowPageModal(true); }}
+              hitSlop={8}
             >
-              <Image
-                source={getBookIconSource(currentBook?.icon)}
-                style={styles.compactDropdownIcon}
-                resizeMode="contain"
-              />
-              <Text style={styles.compactDropdownText} numberOfLines={1}>
-                {currentBook?.title || 'No Books'}
-              </Text>
-              <Feather name="chevron-down" size={18} color={M3.onSurfaceVariant} />
+              <Feather name="file-plus" size={20} color={M3.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.navIconBtn}
+              onPress={() => { handleCloseDropdowns(); setShowBookModal(true); }}
+              hitSlop={8}
+            >
+              <Feather name="book" size={20} color={M3.primary} />
             </TouchableOpacity>
           </View>
-
-          <PressableScale onPress={() => { handleCloseDropdowns(); setShowBookModal(true); }} style={styles.addBtnWrap} contentStyle={styles.addIconBtn}>
-            <Feather name="plus" size={22} color={M3.onPrimary} />
-          </PressableScale>
-
-          {/* Pages dropdown */}
-          <View style={styles.dropdownWrapper}>
-            <TouchableOpacity
-              style={styles.compactDropdown}
-              onPress={() => {
-                setShowBookDropdown(false);
-                setShowPageDropdown(!showPageDropdown);
-              }}
-              activeOpacity={0.8}
-            >
-              <Feather name="file-text" size={18} color={M3.onSurfaceVariant} />
-              <Text style={styles.compactDropdownText} numberOfLines={1}>
-                {selectedPage?.title || 'No Pages'}
-              </Text>
-              <Feather name="chevron-down" size={18} color={M3.onSurfaceVariant} />
-            </TouchableOpacity>
-          </View>
-
-          <PressableScale onPress={() => { handleCloseDropdowns(); setShowPageModal(true); }} style={styles.addBtnWrap} contentStyle={styles.addIconBtn}>
-            <Feather name="plus" size={22} color={M3.onPrimary} />
-          </PressableScale>
         </View>
       </SafeAreaView>
 
-      {/* Note area – maximized, full width */}
+      {/* Note editor area - maximized */}
       {bookPages.length > 0 && selectedPage ? (
-        <View style={styles.noteArea}>
-          <View style={styles.noteAreaHeader}>
-            <Text style={styles.noteAreaTitle} numberOfLines={1}>
+        <View style={styles.editorContainer}>
+          {/* Minimal header with save button */}
+          <View style={styles.editorHeader}>
+            <Text style={styles.editorTitle} numberOfLines={1}>
               {selectedPage.title || 'Untitled'}
             </Text>
-            <PressableScale onPress={handleSavePage} style={styles.saveBtnWrap} contentStyle={styles.savePageBtn}>
-              <Feather name="save" size={18} color={M3.onPrimary} />
-              <Text style={styles.savePageBtnText}>Save</Text>
-            </PressableScale>
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={handleSavePage}
+              hitSlop={8}
+            >
+              <Feather name="save" size={18} color={M3.primary} />
+            </TouchableOpacity>
           </View>
+          
+          {/* Editor */}
           <TenTapNoteEditor
             ref={editorRef}
             key={selectedPage.id}
@@ -465,124 +501,131 @@ export default function NotesScreen() {
           />
         </View>
       ) : (
-        <View style={styles.emptyNoteState}>
-          <View style={styles.emptyNoteIconWrap}>
-            <Feather name="file-text" size={48} color={M3.outlineVariant} />
+        <View style={styles.emptyState}>
+          <View style={styles.emptyIconWrap}>
+            <Feather name="file-text" size={44} color={M3.outline} />
           </View>
-          <Text style={styles.emptyNoteTitle}>No note selected</Text>
-          <Text style={styles.emptyNoteSub}>Select a book and add a page to start writing</Text>
-          <PressableScale onPress={() => setShowPageModal(true)} style={styles.emptyAddWrap} contentStyle={styles.emptyAddBtn}>
-            <Feather name="plus" size={20} color={M3.onPrimary} />
-            <Text style={styles.emptyAddText}>Add page</Text>
-          </PressableScale>
+          <Text style={styles.emptyTitle}>No page selected</Text>
+          <Text style={styles.emptySub}>Create a book and add a page to start</Text>
+          <TouchableOpacity
+            style={styles.emptyBtn}
+            onPress={() => setShowPageModal(true)}
+          >
+            <Feather name="plus" size={18} color={M3.onPrimary} />
+            <Text style={styles.emptyBtnText}>New page</Text>
+          </TouchableOpacity>
         </View>
       )}
 
-      {/* Add Book – bottom sheet */}
+      {/* Book creation modal */}
       <Modal visible={showBookModal} animationType="slide" transparent onRequestClose={() => setShowBookModal(false)}>
         <View style={StyleSheet.absoluteFill}>
-          <Pressable style={styles.sheetOverlay} onPress={() => { setShowBookModal(false); setNewBookTitle(''); setSelectedIcon('BookType 1 -Blue.png'); }} />
-          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>New book</Text>
+          <Pressable style={styles.modalOverlay} onPress={() => { setShowBookModal(false); setNewBookTitle(''); setSelectedIcon('BookType 1 -Blue.png'); }} />
+          <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>New book</Text>
             <TextInput
-              style={styles.sheetInput}
+              style={styles.modalInput}
               value={newBookTitle}
               onChangeText={setNewBookTitle}
               placeholder="Book title"
               placeholderTextColor={M3.onSurfaceVariant}
               autoFocus
             />
-            <Text style={styles.sheetLabel}>ICON</Text>
-            <ScrollView style={styles.sheetIconScroll} contentContainerStyle={styles.sheetIconGrid} showsVerticalScrollIndicator={false}>
+            <Text style={styles.modalLabel}>ICON</Text>
+            <ScrollView style={styles.iconScroll} contentContainerStyle={styles.iconGrid} showsVerticalScrollIndicator={false}>
               {BOOK_ICONS.map((name) => (
                 <TouchableOpacity
                   key={name}
-                  style={[styles.sheetIconOption, selectedIcon === name && styles.sheetIconSelected]}
+                  style={[styles.iconOption, selectedIcon === name && styles.iconSelected]}
                   onPress={() => setSelectedIcon(name)}
                   activeOpacity={0.8}
                 >
-                  <Image source={getBookIconSource(name)} style={styles.sheetIconImg} resizeMode="contain" />
+                  <Image source={getBookIconSource(name)} style={styles.iconImg} resizeMode="contain" />
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <View style={styles.sheetActions}>
-              <TouchableOpacity onPress={() => { setShowBookModal(false); setSelectedIcon('BookType 1 -Blue.png'); }} style={styles.sheetCancel} activeOpacity={0.7}>
-                <Text style={styles.sheetCancelText}>Cancel</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity onPress={() => { setShowBookModal(false); setSelectedIcon('BookType 1 -Blue.png'); }} style={styles.modalCancel}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <PressableScale onPress={handleAddBook} style={styles.sheetAddWrap} contentStyle={styles.sheetAdd}>
-                <Text style={styles.sheetAddText}>Create</Text>
-              </PressableScale>
+              <TouchableOpacity onPress={handleAddBook} style={styles.modalCreate}>
+                <Text style={styles.modalCreateText}>Create</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Add Page – bottom sheet */}
+      {/* Page creation modal */}
       <Modal visible={showPageModal} animationType="slide" transparent onRequestClose={() => setShowPageModal(false)}>
         <View style={StyleSheet.absoluteFill}>
-          <Pressable style={styles.sheetOverlay} onPress={() => setShowPageModal(false)} />
-          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>New page</Text>
+          <Pressable style={styles.modalOverlay} onPress={() => setShowPageModal(false)} />
+          <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>New page</Text>
             <TextInput
-              style={styles.sheetInput}
+              style={styles.modalInput}
               value={newPageTitle}
               onChangeText={setNewPageTitle}
-              placeholder="Page name (optional — uses date/time if blank)"
+              placeholder="Page name (optional)"
               placeholderTextColor={M3.onSurfaceVariant}
             />
-            <Text style={styles.sheetLabel}>START WITH</Text>
+            <Text style={styles.modalLabel}>TEMPLATE</Text>
             <ScrollView style={styles.templateScroll} contentContainerStyle={styles.templateGrid} showsVerticalScrollIndicator={false}>
               {NOTE_TEMPLATES.map((t) => {
                 const selected = t.id === selectedTemplateId;
                 return (
                   <TouchableOpacity
                     key={t.id}
-                    style={[styles.templateCard, selected && styles.templateCardSelected]}
+                    style={[styles.templateCard, selected && styles.templateSelected]}
                     onPress={() => setSelectedTemplateId(t.id)}
                     activeOpacity={0.85}
                   >
-                    <View style={styles.templateCardHeader}>
+                    <View style={styles.templateHeader}>
                       <Text style={[styles.templateName, selected && styles.templateNameSelected]}>{t.name}</Text>
-                      {selected && <View style={styles.templateBadge}><Text style={styles.templateBadgeText}>Selected</Text></View>}
+                      {selected && <View style={styles.templateBadge}><Text style={styles.templateBadgeText}>✓</Text></View>}
                     </View>
-                    <Text style={styles.templateDescription} numberOfLines={2}>{t.description}</Text>
-                    {t.sections.length > 0 ? (
-                      <View style={styles.templatePillsRow}>
-                        {t.sections.slice(0, 4).map((s) => (
-                          <View key={s} style={styles.templatePill}><Text style={styles.templatePillText} numberOfLines={1}>{s}</Text></View>
+                    <Text style={styles.templateDesc} numberOfLines={2}>{t.description}</Text>
+                    {t.sections.length > 0 && (
+                      <View style={styles.templateTags}>
+                        {t.sections.slice(0, 3).map((s) => (
+                          <View key={s} style={styles.templateTag}><Text style={styles.templateTagText} numberOfLines={1}>{s}</Text></View>
                         ))}
                       </View>
-                    ) : (
-                      <Text style={styles.templateBlankHint}>Blank page, no structure.</Text>
                     )}
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
-            <View style={styles.sheetActions}>
-              <TouchableOpacity onPress={() => setShowPageModal(false)} style={styles.sheetCancel} activeOpacity={0.7}>
-                <Text style={styles.sheetCancelText}>Cancel</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity onPress={() => setShowPageModal(false)} style={styles.modalCancel}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <PressableScale onPress={handleAddPageWithCustomTitle} style={styles.sheetAddWrap} contentStyle={styles.sheetAdd}>
-                <Text style={styles.sheetAddText}>{selectedTemplateId === 'blank' ? 'Create' : 'Create from template'}</Text>
-              </PressableScale>
+              <TouchableOpacity onPress={handleAddPageWithCustomTitle} style={styles.modalCreate}>
+                <Text style={styles.modalCreateText}>Create</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Book dropdown – Modal so it appears on top */}
-      <Modal visible={showBookDropdown} transparent animationType="none" onRequestClose={handleCloseDropdowns}>
-        <Pressable style={styles.dropdownModalOverlay} onPress={handleCloseDropdowns}>
-          <Pressable style={styles.dropdownModalContent} onPress={() => {}}>
-            <ScrollView style={styles.dropdownList} showsVerticalScrollIndicator={false}>
+      {/* Book dropdown */}
+      <Modal visible={showBookDropdown} transparent animationType="fade" onRequestClose={handleCloseDropdowns}>
+        <Pressable style={styles.dropdownOverlay} onPress={handleCloseDropdowns}>
+          <Pressable style={styles.dropdownContent} onPress={() => {}}>
+            <View style={styles.dropdownHeader}>
+              <Text style={styles.dropdownTitle}>Books</Text>
+              <TouchableOpacity onPress={handleCloseDropdowns} hitSlop={8}>
+                <Feather name="x" size={20} color={M3.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.dropdownScroll} showsVerticalScrollIndicator={false}>
               {books.length === 0 ? (
                 <Text style={styles.dropdownEmpty}>No books yet</Text>
               ) : (
                 books.map((book) => (
-                  <View key={book.id} style={styles.dropdownBookItem}>
+                  <View key={book.id} style={styles.bookItem}>
                     {editingBookId === book.id ? (
                       <View style={styles.bookEditRow}>
                         <TextInput
@@ -597,35 +640,33 @@ export default function NotesScreen() {
                           <Feather name="check" size={18} color={M3.primary} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={handleCancelBookRename} style={styles.bookEditBtn}>
-                          <Feather name="x" size={18} color={M3.onErrorContainer} />
+                          <Feather name="x" size={18} color={M3.error} />
                         </TouchableOpacity>
                       </View>
                     ) : (
-                      <View style={styles.dropdownBookRow}>
-                        <TouchableOpacity
-                          style={styles.dropdownBookName}
-                          onPress={() => {
-                            setSelectedBookId(book.id);
-                            setShowBookDropdown(false);
-                          }}
-                        >
-                          <Image source={getBookIconSource(book.icon)} style={styles.dropdownBookIcon} resizeMode="contain" />
-                          <Text style={[styles.dropdownBookText, selectedBookId === book.id && styles.selectedBookText]} numberOfLines={1}>
-                            {book.title}
-                          </Text>
-                        </TouchableOpacity>
-                        <View style={styles.dropdownBookActions}>
-                          <TouchableOpacity onPress={() => handleToggleBookFavorite(book.id)} style={styles.dropdownActionBtn}>
-                            <FontAwesome name={book.favorited ? 'star' : 'star-o'} size={18} color={book.favorited ? '#E8A83C' : M3.onSurfaceVariant} />
+                      <TouchableOpacity
+                        style={styles.bookRow}
+                        onPress={() => {
+                          setSelectedBookId(book.id);
+                          setShowBookDropdown(false);
+                        }}
+                      >
+                        <Image source={getBookIconSource(book.icon)} style={styles.bookIcon} resizeMode="contain" />
+                        <Text style={[styles.bookText, selectedBookId === book.id && styles.bookTextActive]} numberOfLines={1}>
+                          {book.title}
+                        </Text>
+                        <View style={styles.bookActions}>
+                          <TouchableOpacity onPress={() => handleToggleBookFavorite(book.id)} hitSlop={8}>
+                            <FontAwesome5 name="star" size={16} color={book.favorited ? '#FFAB00' : M3.outlineVariant} solid={book.favorited} />
                           </TouchableOpacity>
-                          <TouchableOpacity onPress={() => handleRenameBook(book)} style={styles.dropdownActionBtn}>
+                          <TouchableOpacity onPress={() => handleRenameBook(book)} hitSlop={8}>
                             <Feather name="edit-2" size={16} color={M3.primary} />
                           </TouchableOpacity>
-                          <TouchableOpacity onLongPress={() => handleDeleteBook(book.id)} delayLongPress={500} style={styles.dropdownActionBtn}>
-                            <Feather name="trash-2" size={16} color={M3.onErrorContainer} />
+                          <TouchableOpacity onLongPress={() => handleDeleteBook(book.id)} delayLongPress={500} hitSlop={8}>
+                            <Feather name="trash-2" size={16} color={M3.error} />
                           </TouchableOpacity>
                         </View>
-                      </View>
+                      </TouchableOpacity>
                     )}
                   </View>
                 ))
@@ -635,18 +676,24 @@ export default function NotesScreen() {
         </Pressable>
       </Modal>
 
-      {/* Page dropdown – Modal so it appears on top */}
-      <Modal visible={showPageDropdown} transparent animationType="none" onRequestClose={handleCloseDropdowns}>
-        <Pressable style={styles.dropdownModalOverlay} onPress={handleCloseDropdowns}>
-          <Pressable style={styles.dropdownModalContent} onPress={() => {}}>
-            <ScrollView style={styles.dropdownList} showsVerticalScrollIndicator={false}>
+      {/* Page dropdown */}
+      <Modal visible={showPageDropdown} transparent animationType="fade" onRequestClose={handleCloseDropdowns}>
+        <Pressable style={styles.dropdownOverlay} onPress={handleCloseDropdowns}>
+          <Pressable style={styles.dropdownContent} onPress={() => {}}>
+            <View style={styles.dropdownHeader}>
+              <Text style={styles.dropdownTitle}>Pages</Text>
+              <TouchableOpacity onPress={handleCloseDropdowns} hitSlop={8}>
+                <Feather name="x" size={20} color={M3.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.dropdownScroll} showsVerticalScrollIndicator={false}>
               {bookPages.length === 0 ? (
                 <Text style={styles.dropdownEmpty}>No pages yet</Text>
               ) : (
                 bookPages.map((page) => (
                   <TouchableOpacity
                     key={page.id}
-                    style={[styles.dropdownPageItem, selectedPageId === page.id && styles.dropdownPageItemActive]}
+                    style={[styles.pageItem, selectedPageId === page.id && styles.pageItemActive]}
                     onPress={() => {
                       handleSelectPage(page.id);
                       setShowPageDropdown(false);
@@ -654,7 +701,7 @@ export default function NotesScreen() {
                     onLongPress={() => handlePageLongPress(page.id)}
                     delayLongPress={500}
                   >
-                    <Text style={[styles.dropdownPageText, selectedPageId === page.id && styles.selectedPageText]} numberOfLines={1}>
+                    <Text style={[styles.pageText, selectedPageId === page.id && styles.pageTextActive]} numberOfLines={1}>
                       {page.title || 'Untitled'}
                     </Text>
                     {selectedPageId === page.id && <Feather name="check" size={18} color={M3.primary} />}
@@ -669,17 +716,9 @@ export default function NotesScreen() {
   );
 }
 
-const HORIZ_PAD = 12;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  headerRow: {
-    paddingHorizontal: HORIZ_PAD,
-    paddingTop: 4,
-    paddingBottom: 8,
-    backgroundColor: M3.background,
   },
   loadingRoot: {
     flex: 1,
@@ -688,129 +727,426 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
+    fontWeight: '500',
+    letterSpacing: 0.15,
   },
-  compactRow: {
+  
+  // Navigation bar - compact and functional
+  navBar: {
+    backgroundColor: M3.surfaceContainerLow,
+    borderBottomWidth: 0.5,
+    borderBottomColor: M3.outlineVariant,
+  },
+  navContent: {
+    marginTop:7,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  dropdownWrapper: {
-    flex: 1,
-    position: 'relative',
-    minWidth: 0,
-  },
-  compactDropdown: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: M3.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: M3.outline,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minHeight: 44,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     gap: 8,
   },
-  compactDropdownIcon: {
-    width: 24,
-    height: 24,
-  },
-  compactDropdownText: {
+  navChip: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: M3.onSurface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: M3.surfaceContainerHighest,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 4,
     minWidth: 0,
   },
-  addBtnWrap: {
-    alignSelf: 'flex-start',
+  navChipPage: {
+    flex: 1.1,
   },
-  addIconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+  navChipIcon: {
+    width: 25,
+    height: 25,
+  },
+  navChipText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: M3.onSurface,
+    letterSpacing: 0.1,
+    minWidth: 0,
+  },
+  navDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: M3.outlineVariant,
+  },
+  navActions: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  navIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: M3.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  // Editor container - maximized
+  editorContainer: {
+    flex: 1,
+    maxWidth: '98%',
+    marginLeft: 3,
+    backgroundColor: M3.surface,
+  },
+  editorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: M3.outlineVariant,
+  },
+  editorTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: M3.onSurface,
+    letterSpacing: 0.15,
+    marginRight: 12,
+  },
+  saveBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: M3.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  // Empty state
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: M3.surfaceContainerHighest,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: M3.onSurface,
+    marginBottom: 8,
+    letterSpacing: 0,
+  },
+  emptySub: {
+    fontSize: 14,
+    color: M3.onSurfaceVariant,
+    fontWeight: '400',
+    textAlign: 'center',
+    marginBottom: 24,
+    letterSpacing: 0.25,
+  },
+  emptyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: M3.primary,
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    shadowColor: M3.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  emptyBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: M3.onPrimary,
+    letterSpacing: 0.1,
+  },
+  
+  // Modals
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: M3.scrim,
+  },
+  modalSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: M3.surfaceContainerLow,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    shadowColor: M3.shadow,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 12,
+    maxHeight: '88%',
+  },
+  modalHandle: {
+    width: 32,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: M3.onSurfaceVariant,
+    opacity: 0.4,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '400',
+    color: M3.onSurface,
+    marginBottom: 20,
+    letterSpacing: 0,
+  },
+  modalInput: {
+    borderRadius: 12,
+    backgroundColor: M3.surfaceContainerHighest,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: M3.onSurface,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: M3.outline,
+  },
+  modalLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: M3.onSurfaceVariant,
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  iconScroll: {
+    maxHeight: 180,
+    marginBottom: 20,
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  iconOption: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: M3.outline,
+    backgroundColor: M3.surfaceContainerHighest,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  iconSelected: {
+    borderWidth: 2,
+    borderColor: M3.primary,
+    backgroundColor: M3.secondaryContainer,
+  },
+  iconImg: {
+    width: '85%',
+    height: '85%',
+  },
+  templateScroll: {
+    maxHeight: 280,
+    marginBottom: 20,
+  },
+  templateGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  templateCard: {
+    width: '48%',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: M3.outline,
+    backgroundColor: M3.surfaceContainerHighest,
+    padding: 12,
+    minHeight: 110,
+  },
+  templateSelected: {
+    borderWidth: 2,
+    borderColor: M3.primary,
+    backgroundColor: M3.secondaryContainer,
+  },
+  templateHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  templateName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: M3.onSurface,
+    letterSpacing: 0.1,
+  },
+  templateNameSelected: {
+    color: M3.primary,
+  },
+  templateBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: M3.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: M3.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
   },
-  dropdownModalOverlay: {
+  templateBadgeText: {
+    color: M3.onPrimary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  templateDesc: {
+    fontSize: 12,
+    color: M3.onSurfaceVariant,
+    marginBottom: 8,
+    lineHeight: 16,
+    letterSpacing: 0.4,
+  },
+  templateTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  templateTag: {
+    backgroundColor: M3.surface,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  templateTagText: {
+    fontSize: 10,
+    color: M3.onSurfaceVariant,
+    fontWeight: '500',
+    letterSpacing: 0.4,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 12,
+    paddingTop: 8,
+  },
+  modalCancel: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+  },
+  modalCancelText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: M3.primary,
+    letterSpacing: 0.1,
+  },
+  modalCreate: {
+    backgroundColor: M3.primary,
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    shadowColor: M3.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  modalCreateText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: M3.onPrimary,
+    letterSpacing: 0.1,
+  },
+  
+  // Dropdowns
+  dropdownOverlay: {
     flex: 1,
     backgroundColor: M3.scrim,
-    paddingTop: 70,
-    paddingHorizontal: HORIZ_PAD,
+    paddingTop: 100,
+    paddingHorizontal: 16,
   },
-  dropdownModalContent: {
-    backgroundColor: M3.surface,
+  dropdownContent: {
+    backgroundColor: M3.surfaceContainerLow,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: M3.outline,
-    shadowColor: '#000',
+    shadowColor: M3.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 10,
-    maxHeight: 320,
+    maxHeight: 400,
     overflow: 'hidden',
   },
-  dropdownList: {
-    maxHeight: 260,
-  },
-  dropdownEmpty: {
-    paddingVertical: 20,
+  dropdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    fontSize: 15,
-    color: M3.onSurfaceVariant,
-    textAlign: 'center',
-  },
-  dropdownBookItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: M3.outlineVariant,
   },
-  dropdownBookRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  dropdownTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: M3.onSurface,
+    letterSpacing: 0.15,
   },
-  dropdownBookName: {
-    flex: 1,
-    marginRight: 12,
+  dropdownScroll: {
+    maxHeight: 320,
+  },
+  dropdownEmpty: {
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    fontSize: 14,
+    color: M3.onSurfaceVariant,
+    textAlign: 'center',
+    letterSpacing: 0.25,
+  },
+  
+  // Book items
+  bookItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: M3.outlineVariant,
+  },
+  bookRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 0,
+    gap: 12,
   },
-  dropdownBookIcon: {
+  bookIcon: {
     width: 28,
     height: 28,
-    marginRight: 10,
   },
-  dropdownBookText: {
-    fontSize: 15,
-    color: M3.onSurface,
-    fontWeight: '500',
+  bookText: {
     flex: 1,
+    fontSize: 15,
+    fontWeight: '400',
+    color: M3.onSurface,
+    letterSpacing: 0.15,
+    minWidth: 0,
   },
-  selectedBookText: {
-    fontWeight: '700',
+  bookTextActive: {
+    fontWeight: '500',
     color: M3.primary,
   },
-  dropdownBookActions: {
+  bookActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dropdownActionBtn: {
-    marginLeft: 6,
-    padding: 8,
-    minWidth: 36,
-    minHeight: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
   },
   bookEditRow: {
     flexDirection: 'row',
@@ -819,339 +1155,41 @@ const styles = StyleSheet.create({
   },
   bookEditInput: {
     flex: 1,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: M3.outline,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 8,
+    padding: 10,
     fontSize: 15,
-    backgroundColor: M3.surfaceContainerHigh,
+    backgroundColor: M3.surfaceContainerHighest,
     color: M3.onSurface,
-    minHeight: 44,
   },
   bookEditBtn: {
     padding: 8,
-    minWidth: 36,
-    minHeight: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  dropdownPageItem: {
+  
+  // Page items
+  pageItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingHorizontal: 14,
     borderBottomWidth: 1,
     borderBottomColor: M3.outlineVariant,
   },
-  dropdownPageItemActive: {
-    backgroundColor: M3.primaryContainer,
+  pageItemActive: {
+    backgroundColor: M3.secondaryContainer,
   },
-  dropdownPageText: {
+  pageText: {
     flex: 1,
     fontSize: 15,
+    fontWeight: '400',
     color: M3.onSurface,
-    fontWeight: '500',
+    letterSpacing: 0.15,
     marginRight: 8,
   },
-  selectedPageText: {
-    fontWeight: '700',
-    color: M3.primary,
-  },
-  noteArea: {
-    flex: 1,
-    backgroundColor: M3.surface,
-    marginHorizontal: 0,
-    marginTop: 8,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    overflow: 'hidden',
-  },
-  noteAreaHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: M3.outlineVariant,
-  },
-  noteAreaTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: M3.onSurface,
-    flex: 1,
-    marginRight: 12,
-  },
-  saveBtnWrap: {
-    alignSelf: 'flex-start',
-  },
-  savePageBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: M3.primary,
-    borderRadius: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    shadowColor: M3.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  savePageBtnText: {
-    color: M3.onPrimary,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  emptyNoteState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyNoteIconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: M3.surfaceContainerHighest,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyNoteTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: M3.onSurface,
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  emptyNoteSub: {
-    fontSize: 15,
-    color: M3.onSurfaceVariant,
+  pageTextActive: {
     fontWeight: '500',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  emptyAddWrap: {
-    alignSelf: 'center',
-  },
-  emptyAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: M3.primary,
-    borderRadius: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    shadowColor: M3.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  emptyAddText: {
-    color: M3.onPrimary,
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  sheetOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: M3.scrim,
-  },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: M3.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 12,
-    maxHeight: '88%',
-  },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: M3.outlineVariant,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  sheetTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: M3.onSurface,
-    marginBottom: 20,
-    letterSpacing: -0.3,
-  },
-  sheetInput: {
-    borderRadius: 14,
-    backgroundColor: M3.surfaceContainerHigh,
-    borderWidth: 1.5,
-    borderColor: M3.outline,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: M3.onSurface,
-    marginBottom: 20,
-  },
-  sheetLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: M3.onSurfaceVariant,
-    letterSpacing: 1.2,
-    marginBottom: 10,
-  },
-  sheetIconScroll: {
-    maxHeight: 180,
-    marginBottom: 20,
-  },
-  sheetIconGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  sheetIconOption: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: M3.outline,
-    backgroundColor: M3.surfaceContainerHigh,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  sheetIconSelected: {
-    borderColor: M3.primary,
-    backgroundColor: M3.primaryContainer,
-  },
-  sheetIconImg: {
-    width: '100%',
-    height: '100%',
-  },
-  sheetActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 12,
-  },
-  sheetCancel: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-  },
-  sheetCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: M3.onSurfaceVariant,
-  },
-  sheetAddWrap: {
-    alignSelf: 'flex-start',
-  },
-  sheetAdd: {
-    backgroundColor: M3.primary,
-    borderRadius: 16,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    minWidth: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: M3.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  sheetAddText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: M3.onPrimary,
-  },
-  templateScroll: {
-    maxHeight: 260,
-    marginBottom: 20,
-  },
-  templateGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  templateCard: {
-    width: '48%',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: M3.outline,
-    backgroundColor: M3.surfaceContainerHigh,
-    padding: 12,
-    minHeight: 120,
-  },
-  templateCardSelected: {
-    borderColor: M3.primary,
-    backgroundColor: M3.primaryContainer,
-  },
-  templateCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    marginBottom: 6,
-  },
-  templateName: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '800',
-    color: M3.onSurface,
-  },
-  templateNameSelected: {
     color: M3.primary,
-  },
-  templateBadge: {
-    backgroundColor: M3.primary,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  templateBadgeText: {
-    color: M3.onPrimary,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  templateDescription: {
-    fontSize: 12,
-    color: M3.onSurfaceVariant,
-    marginBottom: 10,
-    lineHeight: 16,
-  },
-  templatePillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  templatePill: {
-    backgroundColor: M3.surface,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: M3.outlineVariant,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  templatePillText: {
-    fontSize: 11,
-    color: M3.onSurfaceVariant,
-    fontWeight: '700',
-  },
-  templateBlankHint: {
-    fontSize: 12,
-    color: M3.onSurfaceVariant,
-    fontWeight: '600',
   },
 });

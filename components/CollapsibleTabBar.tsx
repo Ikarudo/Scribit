@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   PanResponder,
 } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import { BottomTabBar } from '@react-navigation/bottom-tabs';
 import { BottomTabBarHeightCallbackContext } from '@react-navigation/bottom-tabs';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -49,7 +49,7 @@ export function CollapsibleTabBar(props: BottomTabBarProps) {
           activeOpacity={0.8}
           hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
         >
-          <FontAwesome name="chevron-up" size={24} color="rgba(255,255,255,0.95)" />
+          <FontAwesome5 name="chevron-up" size={24} color="rgba(255,255,255,0.95)" />
         </TouchableOpacity>
       </View>
     );

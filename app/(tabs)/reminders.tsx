@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FontAwesome, Feather } from '@expo/vector-icons';
+import { FontAwesome5, Feather } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -23,20 +23,62 @@ import { useAuth } from '@/components/useAuth';
 const LIST_PAD = 20;
 const springConfig = { damping: 14, stiffness: 380 };
 
+// Authentic Material 3 Light Theme Color Scheme
 const M3 = {
-  background: '#f2edf8',
-  surface: '#FFFFFF',
-  primary: '#7C5DE8',
-  primaryContainer: '#E8E0FC',
+  // Surface colors
+  background: '#FEF7FF',
+  surface: '#FEF7FF',
+  surfaceContainerLowest: '#FFFFFF',
+  surfaceContainerLow: '#F8F2FA',
+  surfaceContainer: '#F2ECF4',
+  surfaceContainerHigh: '#ECE6EE',
+  surfaceContainerHighest: '#E7E0E8',
+  
+  // Primary colors
+  primary: '#6750A4',
   onPrimary: '#FFFFFF',
-  onSurface: '#1C1B22',
-  onSurfaceVariant: '#5C5868',
-  outline: '#D4CFE0',
-  outlineVariant: '#E6E1ED',
-  surfaceContainerHighest: '#EAE4F5',
-  errorContainer: '#FFEBEE',
-  onErrorContainer: '#b85757',
-  tint: ['#F0EBFF', '#E8F8F2', '#FFF0EB', '#E8F0FF', '#f2e6f5', '#f9ead6'],
+  primaryContainer: '#E9DDFF',
+  onPrimaryContainer: '#22005D',
+  
+  // Secondary colors
+  secondary: '#625B71',
+  onSecondary: '#FFFFFF',
+  secondaryContainer: '#E8DEF8',
+  onSecondaryContainer: '#1E192B',
+  
+  // Tertiary colors
+  tertiary: '#7E5260',
+  onTertiary: '#FFFFFF',
+  tertiaryContainer: '#FFD9E3',
+  onTertiaryContainer: '#31101D',
+  
+  // Text colors
+  onSurface: '#1D1B20',
+  onSurfaceVariant: '#49454E',
+  
+  // Outline colors
+  outline: '#7A757F',
+  outlineVariant: '#CAC4CF',
+  
+  // Error colors
+  error: '#BA1A1A',
+  onError: '#FFFFFF',
+  errorContainer: '#FFDAD6',
+  onErrorContainer: '#410002',
+  
+  // Other
+  scrim: 'rgba(0, 0, 0, 0.4)',
+  shadow: '#000000',
+  
+  // Card tints
+  cardTints: [
+    '#F6EDFF',  // primary tint
+    '#E8DEF8',  // secondary tint  
+    '#FFD9E3',  // tertiary tint
+    '#E8F5E9',  // green tint
+    '#FFF8E1',  // amber tint
+    '#E3F2FD',  // blue tint
+  ],
 };
 
 const GROUP_CONFIG: Record<
@@ -152,7 +194,7 @@ export default function RemindersScreen() {
 
     const config = GROUP_CONFIG[source];
     const muted = sourceMute[source];
-    const tint = M3.tint[config.tintKey % M3.tint.length];
+    const tint = M3.cardTints[config.tintKey % M3.cardTints.length];
 
     return (
       <View key={source} style={styles.groupBlock}>
@@ -173,8 +215,9 @@ export default function RemindersScreen() {
             <Switch
               value={muted}
               onValueChange={(v) => setSourceMute(source, v)}
-              thumbColor={muted ? '#B0A8B8' : M3.primary}
-              trackColor={{ false: M3.outline, true: '#D4CFE0' }}
+              thumbColor={muted ? M3.outlineVariant : M3.primary}
+              trackColor={{ false: M3.surfaceContainerHighest, true: M3.primaryContainer }}
+              ios_backgroundColor={M3.surfaceContainerHighest}
             />
           </View>
         </View>
@@ -182,7 +225,7 @@ export default function RemindersScreen() {
         {data.map((reminder) => (
           <View
             key={reminder.id}
-            style={[styles.reminderRow, { backgroundColor: M3.surface }]}
+            style={[styles.reminderRow, { backgroundColor: M3.surfaceContainerLow }]}
           >
             <View style={styles.reminderBody}>
               <Text style={styles.reminderTitle} numberOfLines={2}>
@@ -205,7 +248,7 @@ export default function RemindersScreen() {
               onPress={() => deleteReminder(reminder.id)}
               hitSlop={8}
             >
-              <Feather name="trash-2" size={16} color={M3.onErrorContainer} />
+              <Feather name="trash-2" size={16} color={M3.error} />
             </TouchableOpacity>
           </View>
         ))}
@@ -266,11 +309,11 @@ export default function RemindersScreen() {
         {totalReminders === 0 && (
           <View style={styles.emptyRoot}>
             <View style={styles.emptyIconWrap}>
-              <Feather name="bell" size={44} color={M3.outlineVariant} />
+              <Feather name="bell" size={44} color={M3.outline} />
             </View>
             <Text style={styles.emptyTitle}>No reminders yet</Text>
             <Text style={styles.emptySub}>
-              Reminders from Calendar and Tasks show up here, or tap “New reminder” to add one.
+              Reminders from Calendar and Tasks show up here, or tap "New reminder" to add one.
             </Text>
           </View>
         )}
@@ -296,43 +339,41 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
+    fontWeight: '500',
+    letterSpacing: 0.15,
   },
   scrollContent: {
     paddingHorizontal: LIST_PAD,
   },
   headline: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: 32,
+    fontWeight: '400',
     color: M3.onSurface,
-    letterSpacing: -0.5,
-    marginBottom: 12,
+    letterSpacing: 0,
+    marginBottom: 16,
   },
   statsChip: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 8,
     backgroundColor: M3.primaryContainer,
     marginBottom: 24,
   },
   statsChipText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: M3.primary,
+    fontWeight: '500',
+    color: M3.onPrimaryContainer,
+    letterSpacing: 0.1,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 18,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: M3.onSurface,
+    marginBottom: 24,
   },
   addWrap: {
     alignSelf: 'flex-start',
@@ -341,43 +382,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: M3.primary,
-    borderRadius: 28,
+    borderRadius: 20,
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 8,
-    shadowColor: M3.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
+    paddingVertical: 10,
+    gap: 6,
+    shadowColor: M3.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
   },
   addText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '500',
     color: M3.onPrimary,
+    letterSpacing: 0.1,
   },
   groupBlock: {
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: M3.outline,
+    shadowColor: M3.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   groupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
   },
   groupHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+    flex: 1,
   },
   groupIconWrap: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     backgroundColor: M3.primaryContainer,
     alignItems: 'center',
@@ -385,13 +431,15 @@ const styles = StyleSheet.create({
   },
   groupTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '500',
     color: M3.onSurface,
+    letterSpacing: 0.15,
   },
   groupCount: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: M3.onSurfaceVariant,
+    letterSpacing: 0.1,
   },
   groupHeaderRight: {
     flexDirection: 'row',
@@ -400,8 +448,9 @@ const styles = StyleSheet.create({
   },
   muteLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     color: M3.onSurfaceVariant,
+    letterSpacing: 0.4,
   },
   reminderRow: {
     flexDirection: 'row',
@@ -417,9 +466,10 @@ const styles = StyleSheet.create({
   },
   reminderTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '500',
     color: M3.onSurface,
     marginBottom: 4,
+    letterSpacing: 0.1,
   },
   reminderMeta: {
     flexDirection: 'row',
@@ -429,10 +479,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: M3.onSurfaceVariant,
     marginLeft: 4,
-    fontWeight: '500',
+    fontWeight: '400',
+    letterSpacing: 0.4,
   },
   deleteBtn: {
-    padding: 4,
+    padding: 8,
+    borderRadius: 20,
   },
   emptyRoot: {
     alignItems: 'center',
@@ -440,9 +492,9 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
   },
   emptyIconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: M3.surfaceContainerHighest,
     alignItems: 'center',
     justifyContent: 'center',
@@ -450,15 +502,18 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '500',
     color: M3.onSurface,
-    marginBottom: 6,
+    marginBottom: 8,
+    letterSpacing: 0,
   },
   emptySub: {
-    fontSize: 15,
+    fontSize: 14,
     color: M3.onSurfaceVariant,
-    fontWeight: '500',
+    fontWeight: '400',
     textAlign: 'center',
     paddingHorizontal: 24,
+    letterSpacing: 0.25,
+    lineHeight: 20,
   },
 });

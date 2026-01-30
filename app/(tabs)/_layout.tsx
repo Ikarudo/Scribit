@@ -1,5 +1,5 @@
 import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { CollapsibleTabBar } from '@/components/CollapsibleTabBar';
@@ -12,10 +12,10 @@ const TAB_BAR = {
 };
 
 function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
+  name: React.ComponentProps<typeof FontAwesome5>['name'];
   color: string;
 }) {
-  return <FontAwesome size={24} style={{ marginBottom: -2 }} {...props} />;
+  return <FontAwesome5 size={24} style={{ marginBottom: -2 }} {...props} />;
 }
 
 export default function TabLayout() {

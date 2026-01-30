@@ -8,7 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
 import * as ImagePicker from 'expo-image-picker';
 import { useBridgeState } from '@10play/tentap-editor';
@@ -205,7 +205,7 @@ export function NotesToolbar({ editor, editable = true }: NotesToolbarProps) {
   const canRedo = !!state?.canRedo;
 
   const formatBtn = (
-    icon: React.ComponentProps<typeof FontAwesome>['name'],
+    icon: React.ComponentProps<typeof FontAwesome5>['name'],
     onPress: () => void,
     active: boolean,
     disabled?: boolean
@@ -216,7 +216,7 @@ export function NotesToolbar({ editor, editable = true }: NotesToolbarProps) {
       disabled={disabled}
       style={[styles.btn, active && styles.btnActive, disabled && styles.btnDisabled]}
     >
-      <FontAwesome
+      <FontAwesome5
         name={icon}
         size={ICON_SIZE}
         color={active ? '#fff' : disabled ? '#bbb' : '#444'}
@@ -239,14 +239,14 @@ export function NotesToolbar({ editor, editable = true }: NotesToolbarProps) {
         {formatBtn('code', toggleCode, codeActive, !canFormat)}
         <View style={styles.divider} />
         {formatBtn('undo', undo, false, !canUndo)}
-        {formatBtn('repeat', redo, false, !canRedo)}
+        {formatBtn('redo', redo, false, !canRedo)}
         <View style={styles.divider} />
         <TouchableOpacity
           hitSlop={HIT_SLOP}
           onPress={handleTTS}
           style={[styles.btn, speaking && styles.btnActive]}
         >
-          <FontAwesome
+          <FontAwesome5
             name={speaking ? 'stop-circle' : 'volume-up'}
             size={ICON_SIZE}
             color={speaking ? '#fff' : '#444'}
@@ -258,7 +258,7 @@ export function NotesToolbar({ editor, editable = true }: NotesToolbarProps) {
           disabled={!editable}
           style={[styles.btn, dictating && styles.btnActive]}
         >
-          <FontAwesome
+          <FontAwesome5
             name="microphone"
             size={ICON_SIZE}
             color={dictating ? '#fff' : !editable ? '#bbb' : '#444'}
@@ -273,7 +273,7 @@ export function NotesToolbar({ editor, editable = true }: NotesToolbarProps) {
           {pickingImage ? (
             <ActivityIndicator size="small" color={ACCENT} />
           ) : (
-            <FontAwesome
+            <FontAwesome5
               name="image"
               size={ICON_SIZE}
               color={!editable || pickingImage ? '#bbb' : '#444'}

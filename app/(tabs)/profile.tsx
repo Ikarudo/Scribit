@@ -9,7 +9,7 @@ import {
   Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FontAwesome, Feather } from '@expo/vector-icons';
+import { FontAwesome5, Feather } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -29,23 +29,70 @@ import EditProfileModal from '@/components/EditProfileModal';
 const LIST_PAD = 20;
 const springConfig = { damping: 14, stiffness: 380 };
 
-// Material 3 Expressive – match home page
+// Authentic Material 3 Light Theme Color Scheme - matching HomeScreen
 const M3 = {
-  background: '#F5F0FA',
-  surface: '#FFFFFF',
-  surfaceContainerHigh: '#F0EBF8',
-  primary: '#7C5DE8',
-  primaryContainer: '#E8E0FC',
+  // Surface colors
+  background: '#FEF7FF',
+  surface: '#FEF7FF',
+  surfaceContainerLowest: '#FFFFFF',
+  surfaceContainerLow: '#F8F2FA',
+  surfaceContainer: '#F2ECF4',
+  surfaceContainerHigh: '#ECE6EE',
+  surfaceContainerHighest: '#E7E0E8',
+  
+  // Primary colors
+  primary: '#6750A4',
   onPrimary: '#FFFFFF',
-  onSurface: '#1C1B22',
-  onSurfaceVariant: '#5C5868',
-  outline: '#D4CFE0',
-  outlineVariant: '#E6E1ED',
-  errorContainer: '#FFEBEE',
-  onErrorContainer: '#b85757',
-  scrim: 'rgba(28, 27, 34, 0.4)',
-  tint: ['#F0EBFF', '#E8F8F2', '#FFF0EB', '#E8F0FF', '#f2e6f5', '#f9ead6'],
-  stat: { books: '#7C5DE8', tasks: '#5CB85C', events: '#E85D5D', reminders: '#E8B83C' },
+  primaryContainer: '#E9DDFF',
+  onPrimaryContainer: '#22005D',
+  
+  // Secondary colors
+  secondary: '#625B71',
+  onSecondary: '#FFFFFF',
+  secondaryContainer: '#E8DEF8',
+  onSecondaryContainer: '#1E192B',
+  
+  // Tertiary colors
+  tertiary: '#7E5260',
+  onTertiary: '#FFFFFF',
+  tertiaryContainer: '#FFD9E3',
+  onTertiaryContainer: '#31101D',
+  
+  // Text colors
+  onSurface: '#1D1B20',
+  onSurfaceVariant: '#49454E',
+  
+  // Outline colors
+  outline: '#7A757F',
+  outlineVariant: '#CAC4CF',
+  
+  // Error colors
+  error: '#BA1A1A',
+  onError: '#FFFFFF',
+  errorContainer: '#FFDAD6',
+  onErrorContainer: '#410002',
+  
+  // Other
+  scrim: 'rgba(0, 0, 0, 0.4)',
+  shadow: '#000000',
+  
+  // Card tints
+  cardTints: [
+    '#F6EDFF',  // primary tint
+    '#E8DEF8',  // secondary tint  
+    '#FFD9E3',  // tertiary tint
+    '#E8F5E9',  // green tint
+    '#FFF8E1',  // amber tint
+    '#E3F2FD',  // blue tint
+  ],
+  
+  // Stat colors - using M3 palette derivatives
+  stat: { 
+    books: '#6750A4',    // primary
+    tasks: '#2E7D32',    // green
+    events: '#C62828',   // red
+    reminders: '#F57C00' // orange
+  },
 };
 
 function PressableScale({
@@ -166,12 +213,12 @@ export default function ProfileScreen() {
         <PressableScale
           onPress={() => setShowEditModal(true)}
           style={styles.userCardWrap}
-          contentStyle={[styles.userCard, { backgroundColor: M3.tint[0] }]}
+          contentStyle={[styles.userCard, { backgroundColor: M3.cardTints[0] }]}
         >
           <View style={styles.avatarRow}>
             <View style={styles.avatarOuter}>
               <View style={styles.avatarCircle}>
-                <FontAwesome name="user" size={40} color={M3.primary} />
+                <FontAwesome5 name="user" size={40} color={M3.primary} />
               </View>
               <TouchableOpacity
                 style={styles.editBadge}
@@ -195,33 +242,32 @@ export default function ProfileScreen() {
         </PressableScale>
 
         {/* Stats */}
-        <Text style={styles.label}>YOUR ACTIVITY</Text>
         <Text style={styles.sectionTitle}>Quick stats</Text>
         <View style={styles.statsGrid}>
-          <View style={[styles.statCard, { backgroundColor: M3.tint[0] }]}>
+          <View style={[styles.statCard, { backgroundColor: M3.cardTints[0] }]}>
             <View style={[styles.statIconWrap, { backgroundColor: M3.primaryContainer }]}>
-              <FontAwesome name="book" size={22} color={M3.stat.books} />
+              <FontAwesome5 name="book" size={22} color={M3.stat.books} />
             </View>
             <Text style={styles.statNumber}>{stats.books}</Text>
             <Text style={styles.statLabel}>Books</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: M3.tint[1] }]}>
-            <View style={[styles.statIconWrap, { backgroundColor: '#E8F5E9' }]}>
-              <FontAwesome name="check-square" size={22} color={M3.stat.tasks} />
+          <View style={[styles.statCard, { backgroundColor: M3.cardTints[3] }]}>
+            <View style={[styles.statIconWrap, { backgroundColor: '#C8E6C9' }]}>
+              <FontAwesome5 name="check-square" size={22} color={M3.stat.tasks} />
             </View>
             <Text style={styles.statNumber}>{stats.tasks}</Text>
             <Text style={styles.statLabel}>Tasks</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: M3.tint[2] }]}>
-            <View style={[styles.statIconWrap, { backgroundColor: '#FFEBEE' }]}>
-              <FontAwesome name="calendar" size={22} color={M3.stat.events} />
+          <View style={[styles.statCard, { backgroundColor: M3.cardTints[2] }]}>
+            <View style={[styles.statIconWrap, { backgroundColor: '#FFCDD2' }]}>
+              <FontAwesome5 name="calendar" size={22} color={M3.stat.events} />
             </View>
             <Text style={styles.statNumber}>{stats.events}</Text>
             <Text style={styles.statLabel}>Events</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: M3.tint[3] }]}>
-            <View style={[styles.statIconWrap, { backgroundColor: '#FFF8E1' }]}>
-              <FontAwesome name="bell" size={22} color={M3.stat.reminders} />
+          <View style={[styles.statCard, { backgroundColor: M3.cardTints[4] }]}>
+            <View style={[styles.statIconWrap, { backgroundColor: '#FFE0B2' }]}>
+              <FontAwesome5 name="bell" size={22} color={M3.stat.reminders} />
             </View>
             <Text style={styles.statNumber}>{stats.reminders}</Text>
             <Text style={styles.statLabel}>Reminders</Text>
@@ -231,9 +277,8 @@ export default function ProfileScreen() {
         {/* Task progress */}
         {stats.tasks > 0 && (
           <>
-            <Text style={[styles.label, { marginTop: 8 }]}>TASK PROGRESS</Text>
-            <Text style={styles.sectionTitle}>You're on a roll</Text>
-            <View style={[styles.progressCard, { backgroundColor: M3.tint[4] }]}>
+            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>You're on a roll</Text>
+            <View style={[styles.progressCard, { backgroundColor: M3.cardTints[1] }]}>
               <View style={styles.progressHeader}>
                 <Text style={styles.progressText}>
                   {stats.completedTasks} of {stats.tasks} done
@@ -256,8 +301,7 @@ export default function ProfileScreen() {
         )}
 
         {/* Settings */}
-        <Text style={[styles.label, { marginTop: stats.tasks > 0 ? 8 : 0 }]}>SETTINGS</Text>
-        <Text style={styles.sectionTitle}>Account</Text>
+        <Text style={[styles.sectionTitle, { marginTop: stats.tasks > 0 ? 24 : 0 }]}>Account</Text>
         <View style={styles.settingsBlock}>
           <PressableScale
             onPress={() => setShowEditModal(true)}
@@ -265,7 +309,7 @@ export default function ProfileScreen() {
             contentStyle={styles.settingRow}
           >
             <View style={[styles.settingIconWrap, { backgroundColor: M3.primaryContainer }]}>
-              <FontAwesome name="user" size={18} color={M3.primary} />
+              <FontAwesome5 name="user" size={18} color={M3.primary} />
             </View>
             <View style={styles.settingBody}>
               <Text style={styles.settingTitle}>Edit profile</Text>
@@ -280,10 +324,10 @@ export default function ProfileScreen() {
             contentStyle={[styles.settingRow, styles.settingRowLast]}
           >
             <View style={[styles.settingIconWrap, { backgroundColor: M3.errorContainer }]}>
-              <FontAwesome name="sign-out" size={18} color={M3.onErrorContainer} />
+              <FontAwesome5 name="sign-out-alt" size={18} color={M3.error} />
             </View>
             <View style={styles.settingBody}>
-              <Text style={[styles.settingTitle, { color: M3.onErrorContainer }]}>Sign out</Text>
+              <Text style={[styles.settingTitle, { color: M3.error }]}>Sign out</Text>
               <Text style={styles.settingSub}>Sign out of your account</Text>
             </View>
             <Feather name="chevron-right" size={20} color={M3.onSurfaceVariant} />
@@ -312,45 +356,46 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
+    fontWeight: '500',
   },
   scrollContent: {
     paddingHorizontal: LIST_PAD,
   },
   headline: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: 32,
+    fontWeight: '400',
     color: M3.onSurface,
-    letterSpacing: -0.5,
+    letterSpacing: 0,
     marginBottom: 4,
   },
   subhead: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '500',
     color: M3.onSurfaceVariant,
     marginBottom: 24,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: M3.onSurfaceVariant,
-    letterSpacing: 1.2,
-    marginBottom: 4,
+    letterSpacing: 0.15,
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: '400',
     color: M3.onSurface,
-    marginBottom: 14,
+    marginBottom: 16,
+    letterSpacing: 0,
   },
   userCardWrap: {
     width: '100%',
-    marginBottom: 28,
+    marginBottom: 32,
   },
   userCard: {
     borderRadius: 24,
     padding: 24,
     alignItems: 'center',
     overflow: 'hidden',
+    shadowColor: M3.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   avatarRow: {
     marginBottom: 16,
@@ -379,18 +424,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: M3.tint[0],
+    borderColor: M3.cardTints[0],
+    shadowColor: M3.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   username: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '500',
     color: M3.onSurface,
     marginBottom: 4,
+    letterSpacing: 0,
   },
   userEmail: {
-    fontSize: 15,
+    fontSize: 14,
     color: M3.onSurfaceVariant,
-    marginBottom: 10,
+    marginBottom: 12,
+    letterSpacing: 0.25,
   },
   memberChip: {
     flexDirection: 'row',
@@ -398,51 +450,64 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: 8,
+    backgroundColor: M3.surfaceContainerHighest,
   },
   memberSince: {
-    fontSize: 13,
+    fontSize: 12,
     color: M3.onSurfaceVariant,
     fontWeight: '500',
+    letterSpacing: 0.4,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    marginBottom: 28,
+    marginBottom: 32,
   },
   statCard: {
-    width: '47%',
-    borderRadius: 20,
-    padding: 18,
+    width: '47.5%',
+    borderRadius: 16,
+    padding: 20,
     alignItems: 'center',
     overflow: 'hidden',
+    shadowColor: M3.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   statIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   statNumber: {
-    fontSize: 26,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '400',
     color: M3.onSurface,
     marginBottom: 2,
+    letterSpacing: 0,
   },
   statLabel: {
     fontSize: 14,
     color: M3.onSurfaceVariant,
-    fontWeight: '600',
+    fontWeight: '500',
+    letterSpacing: 0.1,
   },
   progressCard: {
     borderRadius: 20,
     padding: 20,
-    marginBottom: 28,
+    marginBottom: 32,
     overflow: 'hidden',
+    shadowColor: M3.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -452,41 +517,44 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: M3.onSurface,
+    letterSpacing: 0.15,
   },
   progressPercent: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '500',
     color: M3.primary,
+    letterSpacing: 0,
   },
   progressBar: {
-    height: 10,
-    backgroundColor: M3.outlineVariant,
-    borderRadius: 5,
+    height: 12,
+    backgroundColor: M3.surfaceContainerHighest,
+    borderRadius: 6,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: M3.primary,
-    borderRadius: 5,
+    borderRadius: 6,
   },
   progressCelebrate: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: M3.primary,
-    marginTop: 10,
+    marginTop: 12,
     textAlign: 'center',
+    letterSpacing: 0.1,
   },
   settingsBlock: {
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: M3.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    backgroundColor: M3.surfaceContainerLow,
+    shadowColor: M3.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
     marginBottom: 24,
   },
   settingRowWrap: {
@@ -503,25 +571,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   settingIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: 16,
   },
   settingBody: {
     flex: 1,
   },
   settingTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '500',
     color: M3.onSurface,
     marginBottom: 2,
+    letterSpacing: 0.15,
   },
   settingSub: {
-    fontSize: 13,
+    fontSize: 14,
     color: M3.onSurfaceVariant,
-    fontWeight: '500',
+    fontWeight: '400',
+    letterSpacing: 0.25,
   },
 });

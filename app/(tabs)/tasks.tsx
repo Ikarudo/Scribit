@@ -9,7 +9,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FontAwesome, Feather } from '@expo/vector-icons';
+import { FontAwesome5, Feather } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -26,30 +26,62 @@ const springConfig = { damping: 14, stiffness: 380 };
 
 const PRIORITY_ORDER: TaskPriority[] = ['High', 'Medium', 'Low'];
 const PRIORITY_COLORS = {
-  High: '#E85D5D',
-  Medium: '#E8B83C',
-  Low: '#5CB85C',
+  High: '#C62828',      // M3 red
+  Medium: '#F57C00',    // M3 orange
+  Low: '#2E7D32',       // M3 green
 };
 const PRIORITY_TINT = {
-  High: '#FFF0EB',
-  Medium: '#FFF8E8',
-  Low: '#E8F8F2',
+  High: '#FFCDD2',      // M3 red tint
+  Medium: '#FFE0B2',    // M3 orange tint
+  Low: '#C8E6C9',       // M3 green tint
 };
 
+// Authentic Material 3 Light Theme Color Scheme
 const M3 = {
-  background: '#f2edf8',
-  surface: '#FFFFFF',
-  primary: '#7C5DE8',
-  primaryContainer: '#E8E0FC',
+  // Surface colors
+  background: '#FEF7FF',
+  surface: '#FEF7FF',
+  surfaceContainerLowest: '#FFFFFF',
+  surfaceContainerLow: '#F8F2FA',
+  surfaceContainer: '#F2ECF4',
+  surfaceContainerHigh: '#ECE6EE',
+  surfaceContainerHighest: '#E7E0E8',
+  
+  // Primary colors
+  primary: '#6750A4',
   onPrimary: '#FFFFFF',
-  onSurface: '#1C1B22',
-  onSurfaceVariant: '#5C5868',
-  outline: '#D4CFE0',
-  outlineVariant: '#E6E1ED',
-  surfaceContainerHighest: '#EAE4F5',
-  errorContainer: '#FFEBEE',
-  onErrorContainer: '#b85757',
-  tint: ['#F0EBFF', '#E8F8F2', '#FFF0EB', '#E8F0FF', '#f2e6f5', '#f9ead6'],
+  primaryContainer: '#E9DDFF',
+  onPrimaryContainer: '#22005D',
+  
+  // Secondary colors
+  secondary: '#625B71',
+  onSecondary: '#FFFFFF',
+  secondaryContainer: '#E8DEF8',
+  onSecondaryContainer: '#1E192B',
+  
+  // Tertiary colors
+  tertiary: '#7E5260',
+  onTertiary: '#FFFFFF',
+  tertiaryContainer: '#FFD9E3',
+  onTertiaryContainer: '#31101D',
+  
+  // Text colors
+  onSurface: '#1D1B20',
+  onSurfaceVariant: '#49454E',
+  
+  // Outline colors
+  outline: '#7A757F',
+  outlineVariant: '#CAC4CF',
+  
+  // Error colors
+  error: '#BA1A1A',
+  onError: '#FFFFFF',
+  errorContainer: '#FFDAD6',
+  onErrorContainer: '#410002',
+  
+  // Other
+  scrim: 'rgba(0, 0, 0, 0.4)',
+  shadow: '#000000',
 };
 
 function PressableScale({
@@ -435,7 +467,7 @@ export default function TasksScreen() {
                       onPress={() => handleDeleteTask(task.id, true)}
                       hitSlop={8}
                     >
-                      <Feather name="trash-2" size={16} color={M3.onErrorContainer} />
+                      <Feather name="trash-2" size={16} color={M3.error} />
                     </TouchableOpacity>
                   </View>
                 </PressableScale>
@@ -447,10 +479,10 @@ export default function TasksScreen() {
         {totalTasks === 0 && (
           <View style={styles.emptyRoot}>
             <View style={styles.emptyIconWrap}>
-              <Feather name="check-square" size={44} color={M3.outlineVariant} />
+              <Feather name="check-square" size={44} color={M3.outline} />
             </View>
             <Text style={styles.emptyTitle}>No tasks yet</Text>
-            <Text style={styles.emptySub}>Tap “New task” to add your first one</Text>
+            <Text style={styles.emptySub}>Tap "New task" to add your first one</Text>
           </View>
         )}
       </ScrollView>
@@ -480,43 +512,47 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
+    fontWeight: '500',
+    letterSpacing: 0.15,
   },
   scrollContent: {
     paddingHorizontal: LIST_PAD,
   },
   headline: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: 32,
+    fontWeight: '400',
     color: M3.onSurface,
-    letterSpacing: -0.5,
-    marginBottom: 12,
+    letterSpacing: 0,
+    marginBottom: 16,
   },
   statsChip: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 8,
     backgroundColor: M3.primaryContainer,
     marginBottom: 24,
   },
   statsChipText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: M3.primary,
+    fontWeight: '500',
+    color: M3.onPrimaryContainer,
+    letterSpacing: 0.1,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 18,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: '400',
     color: M3.onSurface,
+    letterSpacing: 0,
   },
   addWrap: {
     alignSelf: 'flex-start',
@@ -525,44 +561,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: M3.primary,
-    borderRadius: 28,
+    borderRadius: 20,
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 8,
-    shadowColor: M3.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
+    paddingVertical: 10,
+    gap: 6,
+    shadowColor: M3.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
   },
   addText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '500',
     color: M3.onPrimary,
+    letterSpacing: 0.1,
   },
   priorityBlock: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
   priorityHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-    gap: 8,
+    gap: 10,
   },
   priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   priorityLabel: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '500',
     color: M3.onSurface,
+    letterSpacing: 0.15,
   },
   priorityCount: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: M3.onSurfaceVariant,
+    letterSpacing: 0.1,
   },
   taskWrap: {
     width: '100%',
@@ -571,25 +610,28 @@ const styles = StyleSheet.create({
   taskCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 20,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: M3.outline,
+    borderRadius: 16,
+    padding: 16,
     overflow: 'hidden',
+    shadowColor: M3.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   taskCardCompleted: {
-    opacity: 0.75,
+    opacity: 0.65,
   },
   checkbox: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: M3.primary,
     backgroundColor: M3.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: 12,
   },
   checkboxChecked: {
     backgroundColor: M3.primary,
@@ -601,9 +643,10 @@ const styles = StyleSheet.create({
   },
   taskName: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '500',
     color: M3.onSurface,
     marginBottom: 2,
+    letterSpacing: 0.15,
   },
   taskNameCompleted: {
     textDecorationLine: 'line-through',
@@ -613,9 +656,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: M3.onSurfaceVariant,
     marginBottom: 4,
+    letterSpacing: 0.25,
   },
   taskDescCompleted: {
-    color: M3.outlineVariant,
+    opacity: 0.6,
   },
   taskMeta: {
     flexDirection: 'row',
@@ -626,28 +670,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: M3.onSurfaceVariant,
     marginLeft: 4,
-    fontWeight: '500',
+    fontWeight: '400',
+    letterSpacing: 0.4,
   },
   taskMetaCompleted: {
-    color: M3.outlineVariant,
+    opacity: 0.6,
   },
   taskActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
   },
   priorityBtn: {
-    padding: 4,
+    padding: 8,
+    borderRadius: 20,
   },
   priorityDotSmall: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: M3.surface,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
   },
   deleteBtn: {
-    padding: 4,
+    padding: 8,
+    borderRadius: 20,
   },
   emptyRoot: {
     alignItems: 'center',
@@ -655,9 +702,9 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
   },
   emptyIconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: M3.surfaceContainerHighest,
     alignItems: 'center',
     justifyContent: 'center',
@@ -665,13 +712,15 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '500',
     color: M3.onSurface,
-    marginBottom: 6,
+    marginBottom: 8,
+    letterSpacing: 0,
   },
   emptySub: {
-    fontSize: 15,
+    fontSize: 14,
     color: M3.onSurfaceVariant,
-    fontWeight: '500',
+    fontWeight: '400',
+    letterSpacing: 0.25,
   },
 });

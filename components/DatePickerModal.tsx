@@ -1,6 +1,19 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+
+const M3 = {
+  surface: '#FFFFFF',
+  primary: '#7C5DE8',
+  primaryContainer: '#E8E0FC',
+  onPrimary: '#FFFFFF',
+  onSurface: '#1C1B22',
+  onSurfaceVariant: '#5C5868',
+  outline: '#D4CFE0',
+  outlineVariant: '#E6E1ED',
+  surfaceContainerHigh: '#F0EBF8',
+  scrim: 'rgba(28, 27, 34, 0.4)',
+};
 
 type DatePickerModalProps = {
   visible: boolean;
@@ -111,20 +124,20 @@ export default function DatePickerModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <View style={styles.modal} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>
-            <Text style={styles.title}>Select Date</Text>
+            <Text style={styles.title}>Select date</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <FontAwesome name="times" size={20} color="#222" />
+              <Feather name="x" size={24} color={M3.onSurface} />
             </TouchableOpacity>
           </View>
 
           {/* Month Navigation */}
           <View style={styles.navigation}>
             <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton}>
-              <FontAwesome name="chevron-left" size={18} color="#222" />
+              <Feather name="chevron-left" size={24} color={M3.onSurface} />
             </TouchableOpacity>
             <TouchableOpacity onPress={goToToday} style={styles.todayButton}>
               <Text style={styles.todayText}>Today</Text>
@@ -133,7 +146,7 @@ export default function DatePickerModal({
               {MONTHS[selectedMonth]} {selectedYear}
             </Text>
             <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
-              <FontAwesome name="chevron-right" size={18} color="#222" />
+              <Feather name="chevron-right" size={24} color={M3.onSurface} />
             </TouchableOpacity>
           </View>
 
@@ -176,7 +189,7 @@ export default function DatePickerModal({
             })}
           </View>
         </View>
-      </View>
+      </Pressable>
     </Modal>
   );
 }
@@ -184,21 +197,23 @@ export default function DatePickerModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: M3.scrim,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modal: {
     width: '90%',
     maxWidth: 400,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
+    backgroundColor: M3.surface,
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: M3.outline,
     shadowColor: '#000',
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.15,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 5,
+    shadowRadius: 16,
+    elevation: 8,
   },
   header: {
     flexDirection: 'row',
@@ -208,36 +223,33 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#222',
+    fontWeight: '800',
+    color: M3.onSurface,
+    letterSpacing: -0.3,
   },
-  closeButton: {
-    padding: 4,
-  },
+  closeButton: { padding: 8 },
   navigation: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  navButton: {
-    padding: 8,
-  },
+  navButton: { padding: 8 },
   todayButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#F7F8FA',
-    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    backgroundColor: M3.primaryContainer,
+    borderRadius: 14,
   },
   todayText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#7B61FF',
+    fontSize: 14,
+    fontWeight: '700',
+    color: M3.primary,
   },
   monthYear: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#222',
+    fontWeight: '700',
+    color: M3.onSurface,
   },
   daysOfWeekRow: {
     flexDirection: 'row',
@@ -251,7 +263,7 @@ const styles = StyleSheet.create({
   dayOfWeekText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#888',
+    color: M3.onSurfaceVariant,
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -262,23 +274,23 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
   },
   todayCell: {
-    backgroundColor: '#F0EDFF',
+    backgroundColor: M3.primaryContainer,
     borderWidth: 2,
-    borderColor: '#7B61FF',
+    borderColor: M3.primary,
   },
   selectedCell: {
-    backgroundColor: '#7B61FF',
+    backgroundColor: M3.primary,
   },
   dayNumber: {
     fontSize: 14,
-    color: '#222',
-    fontWeight: '500',
+    color: M3.onSurface,
+    fontWeight: '600',
   },
   selectedText: {
-    color: '#fff',
+    color: M3.onPrimary,
     fontWeight: 'bold',
   },
 });

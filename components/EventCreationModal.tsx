@@ -8,8 +8,26 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  Pressable,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { CalendarEvent, EventType, RepeatOption } from './CalendarProvider';
+import DatePickerModal from './DatePickerModal';
+import TimePickerModal from './TimePickerModal';
+
+const M3 = {
+  surface: '#FFFFFF',
+  primary: '#7C5DE8',
+  primaryContainer: '#E8E0FC',
+  onPrimary: '#FFFFFF',
+  onSurface: '#1C1B22',
+  onSurfaceVariant: '#5C5868',
+  outline: '#D4CFE0',
+  outlineVariant: '#E6E1ED',
+  surfaceContainerHigh: '#F0EBF8',
+  scrim: 'rgba(28, 27, 34, 0.4)',
+};
 
 const EVENT_TYPES: EventType[] = ['Class Session', 'School Event', 'Assignment', 'Other'];
 const REPEAT_OPTIONS: RepeatOption[] = ['None', 'Daily', 'Weekly', 'Monthly', 'Yearly'];
@@ -76,6 +94,7 @@ export default function EventCreationModal({
     return { time: '09:00', ampm: 'AM' as 'AM' | 'PM' };
   };
 
+  const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('09:00');
@@ -83,6 +102,8 @@ export default function EventCreationModal({
   const [repeat, setRepeat] = useState<RepeatOption>('None');
   const [color, setColor] = useState(COLOR_OPTIONS[0]);
   const [eventType, setEventType] = useState<EventType>('Other');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   // Update state when modal opens or initialDate/initialEvent changes
   useEffect(() => {
@@ -175,121 +196,98 @@ export default function EventCreationModal({
     onClose();
   };
 
+  // Format date for display (e.g. "Jan 15, 2025")
+  const formatDateDisplay = (dateStr: string) => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return 'Select date';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[m - 1]} ${d}, ${y}`;
+  };
+
+  // Format time for display (e.g. "9:00 AM")
+  const formatTimeDisplay = () => {
+    const time24 = convertTo24Hour(time, ampm);
+    const { time: t, ampm: a } = convertTo12Hour(time24);
+    const [h, min] = t.split(':');
+    const hour = parseInt(h, 10);
+    return `${hour}:${min} ${a}`;
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleCancel}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <Text style={styles.title}>{initialEvent ? 'Edit Event' : 'Create New Event'}</Text>
+      <View style={StyleSheet.absoluteFill}>
+        <Pressable style={styles.overlay} onPress={handleCancel} />
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
+          <View style={styles.sheetHandle} />
+          <Text style={styles.sheetTitle}>{initialEvent ? 'Edit event' : 'New event'}</Text>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
             {/* Title */}
-            <Text style={styles.label}>Event Title</Text>
+            <Text style={styles.label}>EVENT TITLE</Text>
             <TextInput
               style={styles.input}
               value={title}
               onChangeText={setTitle}
               placeholder="Enter event title"
-              placeholderTextColor="#BDBDBD"
+              placeholderTextColor={M3.onSurfaceVariant}
             />
 
-            {/* Date */}
-            <Text style={styles.label}>Date</Text>
-            <TextInput
-              style={styles.input}
-              value={date}
-              onChangeText={setDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#BDBDBD"
-            />
+            {/* Date – tappable, opens date picker */}
+            <Text style={styles.label}>DATE</Text>
+            <TouchableOpacity
+              style={styles.pickerField}
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.8}
+            >
+              <Feather name="calendar" size={20} color={M3.onSurfaceVariant} />
+              <Text style={[styles.pickerFieldText, !date && styles.pickerFieldPlaceholder]}>
+                {date ? formatDateDisplay(date) : 'Select date'}
+              </Text>
+              <Feather name="chevron-right" size={20} color={M3.onSurfaceVariant} />
+            </TouchableOpacity>
 
-            {/* Time */}
-            <Text style={styles.label}>Time</Text>
-            <View style={styles.timeContainer}>
-              <TextInput
-                style={[styles.input, styles.timeInput]}
-                value={time}
-                onChangeText={(text) => {
-                  // Allow only numbers and colon
-                  const cleaned = text.replace(/[^0-9:]/g, '');
-                  // Format as HH:MM
-                  if (cleaned.length <= 5) {
-                    setTime(cleaned);
-                  }
-                }}
-                placeholder="09:00"
-                placeholderTextColor="#BDBDBD"
-                keyboardType="numeric"
-              />
-              <View style={styles.ampmContainer}>
-                <TouchableOpacity
-                  style={[styles.ampmButton, ampm === 'AM' && styles.ampmButtonActive]}
-                  onPress={() => setAmpm('AM')}
-                >
-                  <Text style={[styles.ampmText, ampm === 'AM' && styles.ampmTextActive]}>
-                    AM
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.ampmButton, ampm === 'PM' && styles.ampmButtonActive]}
-                  onPress={() => setAmpm('PM')}
-                >
-                  <Text style={[styles.ampmText, ampm === 'PM' && styles.ampmTextActive]}>
-                    PM
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            {/* Time – tappable, opens time picker */}
+            <Text style={styles.label}>TIME</Text>
+            <TouchableOpacity
+              style={styles.pickerField}
+              onPress={() => setShowTimePicker(true)}
+              activeOpacity={0.8}
+            >
+              <Feather name="clock" size={20} color={M3.onSurfaceVariant} />
+              <Text style={styles.pickerFieldText}>{formatTimeDisplay()}</Text>
+              <Feather name="chevron-right" size={20} color={M3.onSurfaceVariant} />
+            </TouchableOpacity>
 
             {/* Event Type */}
-            <Text style={styles.label}>Event Type</Text>
+            <Text style={styles.label}>EVENT TYPE</Text>
             <View style={styles.optionsRow}>
               {EVENT_TYPES.map((type) => (
                 <TouchableOpacity
                   key={type}
-                  style={[
-                    styles.optionButton,
-                    eventType === type && styles.optionButtonActive,
-                  ]}
+                  style={[styles.optionButton, eventType === type && styles.optionButtonActive]}
                   onPress={() => setEventType(type)}
                 >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      eventType === type && styles.optionTextActive,
-                    ]}
-                  >
-                    {type}
-                  </Text>
+                  <Text style={[styles.optionText, eventType === type && styles.optionTextActive]}>{type}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             {/* Repeat */}
-            <Text style={styles.label}>Repeat</Text>
+            <Text style={styles.label}>REPEAT</Text>
             <View style={styles.optionsRow}>
               {REPEAT_OPTIONS.map((option) => (
                 <TouchableOpacity
                   key={option}
-                  style={[
-                    styles.optionButton,
-                    repeat === option && styles.optionButtonActive,
-                  ]}
+                  style={[styles.optionButton, repeat === option && styles.optionButtonActive]}
                   onPress={() => setRepeat(option)}
                 >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      repeat === option && styles.optionTextActive,
-                    ]}
-                  >
-                    {option}
-                  </Text>
+                  <Text style={[styles.optionText, repeat === option && styles.optionTextActive]}>{option}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             {/* Color */}
-            <Text style={styles.label}>Color</Text>
+            <Text style={styles.label}>COLOR</Text>
             <View style={styles.colorRow}>
               {COLOR_OPTIONS.map((colorOption) => (
                 <TouchableOpacity
@@ -301,9 +299,7 @@ export default function EventCreationModal({
                   ]}
                   onPress={() => setColor(colorOption)}
                 >
-                  {color === colorOption && (
-                    <Text style={styles.checkmark}>✓</Text>
-                  )}
+                  {color === colorOption && <Feather name="check" size={18} color="#fff" />}
                 </TouchableOpacity>
               ))}
             </View>
@@ -315,175 +311,188 @@ export default function EventCreationModal({
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-              <Text style={styles.saveText}>Save</Text>
+              <Text style={styles.saveText}>{initialEvent ? 'Save' : 'Create'}</Text>
             </TouchableOpacity>
           </View>
         </View>
       </View>
+
+      <DatePickerModal
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        onSelectDate={(d) => { setDate(d); setShowDatePicker(false); }}
+        initialDate={date}
+      />
+      <TimePickerModal
+        visible={showTimePicker}
+        onClose={() => setShowTimePicker(false)}
+        onSelectTime={(t) => {
+          const { time: t12, ampm: a } = convertTo12Hour(t);
+          setTime(t12);
+          setAmpm(a);
+          setShowTimePicker(false);
+        }}
+        initialTime={convertTo24Hour(time, ampm)}
+      />
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: M3.scrim,
   },
-  modal: {
-    width: '90%',
-    maxHeight: '85%',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: M3.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 12,
+    maxHeight: '90%',
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#222',
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: M3.outlineVariant,
+    alignSelf: 'center',
     marginBottom: 20,
   },
+  sheetTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: M3.onSurface,
+    marginBottom: 20,
+    letterSpacing: -0.3,
+  },
+  scroll: { maxHeight: 400 },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#222',
-    marginTop: 12,
+    fontSize: 11,
+    fontWeight: '700',
+    color: M3.onSurfaceVariant,
+    letterSpacing: 1.2,
     marginBottom: 8,
   },
   input: {
+    borderRadius: 14,
+    backgroundColor: M3.surfaceContainerHigh,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    padding: 14,
+    borderColor: M3.outline,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
     fontSize: 16,
-    backgroundColor: '#FAFAFA',
-    color: '#222',
-    minHeight: 52,
+    color: M3.onSurface,
+    marginBottom: 20,
   },
-  timeContainer: {
+  pickerField: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
-    alignItems: 'center',
-  },
-  timeInput: {
-    flex: 1,
-  },
-  ampmContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  ampmButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    borderRadius: 14,
+    backgroundColor: M3.surfaceContainerHigh,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FAFAFA',
-    minWidth: 60,
-    alignItems: 'center',
+    borderColor: M3.outline,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 20,
   },
-  ampmButtonActive: {
-    backgroundColor: '#7B61FF',
-    borderColor: '#7B61FF',
-  },
-  ampmText: {
+  pickerFieldText: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '600',
-    color: '#222',
+    color: M3.onSurface,
   },
-  ampmTextActive: {
-    color: '#fff',
+  pickerFieldPlaceholder: {
+    color: M3.onSurfaceVariant,
+    fontWeight: '500',
   },
   optionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 20,
   },
   optionButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FAFAFA',
+    borderColor: M3.outline,
+    backgroundColor: M3.surfaceContainerHigh,
   },
   optionButtonActive: {
-    backgroundColor: '#7B61FF',
-    borderColor: '#7B61FF',
+    backgroundColor: M3.primary,
+    borderColor: M3.primary,
   },
   optionText: {
     fontSize: 14,
-    color: '#222',
-    fontWeight: '500',
+    color: M3.onSurface,
+    fontWeight: '600',
   },
   optionTextActive: {
-    color: '#fff',
-    fontWeight: '600',
+    color: M3.onPrimary,
   },
   colorRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    marginBottom: 8,
+    marginBottom: 20,
   },
   colorOption: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
   },
   colorOptionSelected: {
-    borderColor: '#222',
+    borderColor: M3.onSurface,
     borderWidth: 3,
-  },
-  checkmark: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
   },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 20,
+    marginTop: 16,
     gap: 12,
   },
   cancelButton: {
     paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
+    paddingHorizontal: 20,
   },
   cancelText: {
-    color: '#888',
+    color: M3.onSurfaceVariant,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   saveButton: {
-    backgroundColor: '#7B61FF',
-    paddingVertical: 12,
+    backgroundColor: M3.primary,
+    paddingVertical: 14,
     paddingHorizontal: 28,
-    borderRadius: 10,
-    minWidth: 80,
+    borderRadius: 16,
+    minWidth: 100,
     alignItems: 'center',
-    shadowColor: '#7B61FF',
-    shadowOpacity: 0.3,
+    shadowColor: M3.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
   saveText: {
-    color: '#fff',
+    color: M3.onPrimary,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
 });
 
