@@ -6,6 +6,13 @@
     "@react-native-async-storage/async-storage": "1.24.0",
     "react-native-safe-area-context": "^5.6.2"
   },
+  "expo": {
+    "install": {
+      "exclude": [
+        "@react-native-async-storage/async-storage"
+      ]
+    }
+  },
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
