@@ -3,6 +3,7 @@
     "version": ">= 16.32.0",
     "appVersionSource": "remote"
   },
+  "workflow": "generic",
   "build": {
     "development": {
       "developmentClient": true,
@@ -12,7 +13,6 @@
       "distribution": "internal"
     },
     "production": {
-      "workflow": "generic",
       "android": {
         "buildType": "apk"
       }
