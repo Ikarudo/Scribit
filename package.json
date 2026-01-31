@@ -2,6 +2,9 @@
   "name": "scribit",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "resolutions": {
+  "react-native-safe-area-context": "^5.6.2"
+},
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -56,5 +59,6 @@
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
+  
   "private": true
 }
