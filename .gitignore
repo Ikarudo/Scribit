@@ -39,6 +39,3 @@ yarn-error.*
 #Firebase Things
 FIREBASE_RULES_DEPLOYMENT.md
 firestore.rules
-
-#Android For Some Reason
-/android
