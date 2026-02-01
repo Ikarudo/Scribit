@@ -62,8 +62,6 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   const [pages, setPages] = useState<Page[]>([]);
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [trackedBooks, setTrackedBooks] = useState<Set<string>>(new Set());
-
   // Load books and pages from AsyncStorage only (offline-only mode)
   useEffect(() => {
     const loadBooksAndPages = async () => {
@@ -377,24 +375,18 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     
-    // Update book usage statistics when selected (but only once per session)
+    // Update book lastOpened every time it's selected for proper "recently used" ordering
     const book = books.find(b => b.id === id);
-    if (book && !trackedBooks.has(id)) {
+    if (book) {
       const updatedBook = {
         ...book,
         lastOpened: Date.now(),
         openCount: (book.openCount || 0) + 1
       };
       
-      // Update local state immediately
       const updatedBooks = books.map(b => b.id === id ? updatedBook : b);
       setBooks(updatedBooks);
       AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(updatedBooks));
-      
-      // Mark this book as tracked for this session
-      setTrackedBooks(prev => new Set([...prev, id]));
-      
-      console.log('NotesProvider: Book usage tracked locally');
     }
     setSelectedBookId(id);
   };

@@ -277,7 +277,9 @@ export default function ProfileScreen() {
         {/* Task progress */}
         {stats.tasks > 0 && (
           <>
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>You're on a roll</Text>
+            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+              {progressPct === 0 ? 'Your progress' : progressPct === 100 ? 'All done!' : "You're on a roll"}
+            </Text>
             <View style={[styles.progressCard, { backgroundColor: M3.cardTints[1] }]}>
               <View style={styles.progressHeader}>
                 <Text style={styles.progressText}>
@@ -294,7 +296,7 @@ export default function ProfileScreen() {
                 />
               </View>
               {progressPct === 100 && (
-                <Text style={styles.progressCelebrate}>🎉 All done!</Text>
+                <Text style={styles.progressCelebrate}>🎉 Great job completing all your tasks!</Text>
               )}
             </View>
           </>

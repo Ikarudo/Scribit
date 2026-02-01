@@ -1,10 +1,12 @@
-import {View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Modal, Pressable} from 'react-native';
+import {View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Modal, Pressable, KeyboardAvoidingView, Platform} from 'react-native';
 import React from 'react';
 import {auth} from '../FirebaseConfig';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/components/useAuth';
 import { useUserProfile } from '@/components/UserProfileProvider';
+import AuthErrorModal from '@/components/AuthErrorModal';
+import { getAuthErrorMessage } from '@/utils/authErrors';
 
 const index = () => {
     const { loading, user } = useAuth();
@@ -18,19 +20,21 @@ const index = () => {
     const [signUpPassword, setSignUpPassword] = React.useState('');
     const [signUpUsername, setSignUpUsername] = React.useState('');
     const [signUpShowPassword, setSignUpShowPassword] = React.useState(false);
+    const [authError, setAuthError] = React.useState<string | null>(null);
+    const [showAuthError, setShowAuthError] = React.useState(false);
 
     const signIn = async () => {
-        try{
-            await signInWithEmailAndPassword(auth, email, password)
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
             // Navigation handled by onAuthStateChanged
-        }catch (error: any){
-        console.log(error)
-        alert('Sign in failed: ' + error.message);
-    }
-}
+        } catch (error: unknown) {
+            setAuthError(getAuthErrorMessage(error, 'login'));
+            setShowAuthError(true);
+        }
+    };
 
     const signUp = async () => {
-        try{
+        try {
             const userCredential = await createUserWithEmailAndPassword(auth, signUpEmail, signUpPassword);
             // Save username to user profile
             if (signUpUsername.trim()) {
@@ -41,11 +45,11 @@ const index = () => {
             setSignUpPassword('');
             setSignUpUsername('');
             // Navigation handled by onAuthStateChanged
-        }catch (error: any){
-        console.log(error)
-        alert('Sign Up failed: ' + error.message);
-    }
-    }
+        } catch (error: unknown) {
+            setAuthError(getAuthErrorMessage(error, 'signup'));
+            setShowAuthError(true);
+        }
+    };
 
     if (loading) {
         return <SafeAreaView style={styles.container}><Text>Loading...</Text></SafeAreaView>;
@@ -108,7 +112,7 @@ const index = () => {
                 transparent={true}
                 onRequestClose={() => setShowSignUp(false)}
             >
-                <View style={styles.modalOverlay}>
+                <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
                     <View style={styles.modalContent}>
                         <Text style={styles.welcome}>Create Account</Text>
                         <Text style={styles.signInToContinue}>Sign up to get started</Text>
@@ -157,10 +161,19 @@ const index = () => {
                             <Text style={styles.closeModalText}>Cancel</Text>
                         </Pressable>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
+
+            <AuthErrorModal
+                visible={showAuthError}
+                message={authError || 'An error occurred. Please try again.'}
+                onClose={() => {
+                    setShowAuthError(false);
+                    setAuthError(null);
+                }}
+            />
         </SafeAreaView>
-    )
+    );
 }
 
 const styles = StyleSheet.create({

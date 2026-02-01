@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, TextInput, Alert, Pressable, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, TextInput, Alert, Pressable, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
@@ -404,7 +404,7 @@ export default function NotesScreen() {
     );
   }
 
-  const tabBarClearance = 30;
+  const tabBarClearance = 50;
 
   return (
     <View style={[styles.container, { backgroundColor: M3.background, paddingBottom: insets.bottom + tabBarClearance }]}>
@@ -519,9 +519,9 @@ export default function NotesScreen() {
 
       {/* Book creation modal */}
       <Modal visible={showBookModal} animationType="slide" transparent onRequestClose={() => setShowBookModal(false)}>
-        <View style={StyleSheet.absoluteFill}>
+        <KeyboardAvoidingView style={StyleSheet.absoluteFill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
           <Pressable style={styles.modalOverlay} onPress={() => { setShowBookModal(false); setNewBookTitle(''); setSelectedIcon('BookType 1 -Blue.png'); }} />
-          <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
+          <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 1) + 1 }]}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>New book</Text>
             <TextInput
@@ -554,12 +554,12 @@ export default function NotesScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Page creation modal */}
       <Modal visible={showPageModal} animationType="slide" transparent onRequestClose={() => setShowPageModal(false)}>
-        <View style={StyleSheet.absoluteFill}>
+        <KeyboardAvoidingView style={StyleSheet.absoluteFill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
           <Pressable style={styles.modalOverlay} onPress={() => setShowPageModal(false)} />
           <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
             <View style={styles.modalHandle} />
@@ -607,7 +607,7 @@ export default function NotesScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Book dropdown */}
@@ -624,7 +624,9 @@ export default function NotesScreen() {
               {books.length === 0 ? (
                 <Text style={styles.dropdownEmpty}>No books yet</Text>
               ) : (
-                books.map((book) => (
+                [...books]
+                  .sort((a, b) => (b.lastOpened || b.createdAt || 0) - (a.lastOpened || a.createdAt || 0))
+                  .map((book) => (
                   <View key={book.id} style={styles.bookItem}>
                     {editingBookId === book.id ? (
                       <View style={styles.bookEditRow}>
@@ -1040,7 +1042,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 12,
-    paddingTop: 8,
+    paddingTop: 1,
   },
   modalCancel: {
     paddingVertical: 10,

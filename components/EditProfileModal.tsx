@@ -8,6 +8,8 @@ import {
   Pressable,
   StyleSheet,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -90,7 +92,11 @@ export default function EditProfileModal({
       transparent
       onRequestClose={onClose}
     >
-      <View style={StyleSheet.absoluteFill}>
+      <KeyboardAvoidingView
+        style={StyleSheet.absoluteFill}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
         <Pressable style={styles.overlay} onPress={onClose} />
         <View
           style={[
@@ -139,7 +145,7 @@ export default function EditProfileModal({
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

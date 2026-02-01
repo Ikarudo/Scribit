@@ -5,6 +5,7 @@ import { FontAwesome5, Feather } from '@expo/vector-icons';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Calendar, DateData } from 'react-native-calendars';
 import { useCalendar, CalendarEvent, EventOccurrence } from '@/components/CalendarProvider';
+import { parseLocalDate } from '@/constants/dateUtils';
 import EventCreationModal from '@/components/EventCreationModal';
 import { useReminders } from '@/components/RemindersProvider';
 import { useAuth } from '@/components/useAuth';
@@ -289,7 +290,7 @@ export default function CalendarScreen() {
   const formatDate = (dateStr: string | undefined): string => {
     if (!dateStr || typeof dateStr !== 'string') return 'Invalid Date';
     try {
-      const date = new Date(dateStr);
+      const date = parseLocalDate(dateStr);
       if (isNaN(date.getTime())) return 'Invalid Date';
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const monthIndex = date.getMonth();

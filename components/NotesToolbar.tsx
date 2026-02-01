@@ -51,6 +51,7 @@ export function NotesToolbar({ editor, editable = true }: NotesToolbarProps) {
   const toggleUnderline = useCallback(() => editor.toggleUnderline?.(), [editor]);
   const toggleStrike = useCallback(() => editor.toggleStrike?.(), [editor]);
   const toggleCode = useCallback(() => editor.toggleCode?.(), [editor]);
+  const toggleBulletList = useCallback(() => editor.toggleBulletList?.(), [editor]);
   const undo = useCallback(() => editor.undo?.(), [editor]);
   const redo = useCallback(() => editor.redo?.(), [editor]);
 
@@ -201,6 +202,7 @@ export function NotesToolbar({ editor, editable = true }: NotesToolbarProps) {
   const underlineActive = !!state?.isUnderlineActive;
   const strikeActive = !!state?.isStrikeActive;
   const codeActive = !!state?.isCodeActive;
+  const bulletListActive = !!state?.isBulletListActive;
   const canUndo = !!state?.canUndo;
   const canRedo = !!state?.canRedo;
 
@@ -237,6 +239,7 @@ export function NotesToolbar({ editor, editable = true }: NotesToolbarProps) {
         {formatBtn('underline', toggleUnderline, underlineActive, !canFormat)}
         {formatBtn('strikethrough', toggleStrike, strikeActive, !canFormat)}
         {formatBtn('code', toggleCode, codeActive, !canFormat)}
+        {formatBtn('list-ul', toggleBulletList, bulletListActive, !canFormat)}
         <View style={styles.divider} />
         {formatBtn('undo', undo, false, !canUndo)}
         {formatBtn('redo', redo, false, !canRedo)}

@@ -9,6 +9,8 @@ import {
   ScrollView,
   Alert,
   Pressable,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -29,7 +31,7 @@ const M3 = {
   scrim: 'rgba(28, 27, 34, 0.4)',
 };
 
-const EVENT_TYPES: EventType[] = ['Class Session', 'School Event', 'Assignment', 'Other'];
+const EVENT_TYPES: EventType[] = ['Class Session', 'School Event', 'Assignment', 'Task', 'Other'];
 const REPEAT_OPTIONS: RepeatOption[] = ['None', 'Daily', 'Weekly', 'Monthly', 'Yearly'];
 const COLOR_OPTIONS = [
   '#7B61FF', '#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3',
@@ -125,7 +127,8 @@ export default function EventCreationModal({
             `${initialDate.getFullYear()}-${String(initialDate.getMonth() + 1).padStart(2, '0')}-${String(initialDate.getDate()).padStart(2, '0')}`
           );
         } else {
-          setDate(new Date().toISOString().split('T')[0]);
+          const now = new Date();
+          setDate(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`);
         }
         setTime('09:00');
         setAmpm('AM');
@@ -215,9 +218,13 @@ export default function EventCreationModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleCancel}>
-      <View style={StyleSheet.absoluteFill}>
+      <KeyboardAvoidingView
+        style={StyleSheet.absoluteFill}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
         <Pressable style={styles.overlay} onPress={handleCancel} />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 0) + 0 }]}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>{initialEvent ? 'Edit event' : 'New event'}</Text>
 
@@ -315,7 +322,7 @@ export default function EventCreationModal({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       <DatePickerModal
         visible={showDatePicker}
@@ -464,7 +471,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 16,
+    marginTop: 10,
     gap: 12,
   },
   cancelButton: {

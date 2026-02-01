@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type EventType = 'Class Session' | 'School Event' | 'Assignment' | 'Other';
+export type EventType = 'Class Session' | 'School Event' | 'Assignment' | 'Task' | 'Other';
 
 export type RepeatOption = 'None' | 'Daily' | 'Weekly' | 'Monthly' | 'Yearly';
 
@@ -244,7 +244,7 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
       const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
       if (dayOfMonth <= lastDayOfMonth) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayOfMonth).padStart(2, '0')}`;
-        const occurrenceDate = new Date(dateStr);
+        const occurrenceDate = parseDateString(dateStr);
         
         // Only include if the occurrence date is on or after the original event date
         if (occurrenceDate >= startDate) {

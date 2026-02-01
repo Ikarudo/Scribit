@@ -16,6 +16,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useTasks, Task, TaskPriority } from '@/components/TasksProvider';
+import { parseLocalDate } from '@/constants/dateUtils';
 import { useCalendar } from '@/components/CalendarProvider';
 import { useReminders } from '@/components/RemindersProvider';
 import TaskCreationModal from '@/components/TaskCreationModal';
@@ -146,7 +147,7 @@ export default function TasksScreen() {
   const formatDate = (dateStr: string): string => {
     if (!dateStr) return '';
     try {
-      const date = new Date(dateStr);
+      const date = parseLocalDate(dateStr);
       if (isNaN(date.getTime())) return '';
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const month = months[date.getMonth()];
@@ -180,7 +181,7 @@ export default function TasksScreen() {
   const isDateToday = (dateStr: string): boolean => {
     if (!dateStr) return false;
     try {
-      return new Date(dateStr).toDateString() === new Date().toDateString();
+      return parseLocalDate(dateStr).toDateString() === new Date().toDateString();
     } catch {
       return false;
     }
@@ -201,8 +202,9 @@ export default function TasksScreen() {
     options?: { createReminder?: boolean }
   ) => {
     try {
+      // Reminder can be created with just dueDate; default time 09:00 used if dueTime missing
       const shouldCreateReminder =
-        !!options?.createReminder && !!taskData.dueDate && !!taskData.dueTime;
+        !!options?.createReminder && !!taskData.dueDate;
 
       if (selectedTask) {
         if (selectedTask.calendarEventId) {
@@ -221,7 +223,7 @@ export default function TasksScreen() {
               time: taskData.dueTime || '09:00',
               repeat: 'None',
               color: PRIORITY_COLORS[taskData.priority],
-              eventType: 'Assignment',
+              eventType: 'Task',
             });
           } catch (e) {
             console.error(e);
@@ -232,6 +234,7 @@ export default function TasksScreen() {
           await createReminderForTask({
             ...selectedTask,
             ...taskData,
+            dueTime: taskData.dueTime || '09:00',
             calendarEventId,
           });
         }
@@ -245,22 +248,22 @@ export default function TasksScreen() {
               time: taskData.dueTime || '09:00',
               repeat: 'None',
               color: PRIORITY_COLORS[taskData.priority],
-              eventType: 'Assignment',
+              eventType: 'Task',
             });
           } catch (e) {
             console.error(e);
           }
         }
-        await createTask({ ...taskData, calendarEventId });
+        const newTaskId = await createTask({ ...taskData, calendarEventId });
         if (shouldCreateReminder) {
           await createReminderForTask({
-            id: 'temp',
+            id: newTaskId,
             name: taskData.name,
             description: taskData.description,
             priority: taskData.priority,
             completed: taskData.completed,
             dueDate: taskData.dueDate,
-            dueTime: taskData.dueTime,
+            dueTime: taskData.dueTime || '09:00',
             createdAt: Date.now(),
             calendarEventId,
           });

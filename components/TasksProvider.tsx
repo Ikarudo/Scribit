@@ -18,7 +18,7 @@ export type Task = {
 interface TasksContextType {
   tasks: Task[];
   loading: boolean;
-  createTask: (task: Omit<Task, 'id' | 'createdAt'>) => Promise<void>;
+  createTask: (task: Omit<Task, 'id' | 'createdAt'>) => Promise<string>; // Returns new task ID
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   toggleTaskComplete: (id: string) => Promise<void>;
@@ -70,7 +70,7 @@ export const TasksProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // CRUD for tasks
-  const createTask = async (taskData: Omit<Task, 'id' | 'createdAt'>) => {
+  const createTask = async (taskData: Omit<Task, 'id' | 'createdAt'>): Promise<string> => {
     const id = generateId();
     const newTask: Task = {
       id,
@@ -83,6 +83,7 @@ export const TasksProvider = ({ children }: { children: ReactNode }) => {
     setTasks(updatedTasks);
     await AsyncStorage.setItem(TASKS_KEY, JSON.stringify(updatedTasks));
     console.log('TasksProvider: Task created');
+    return id;
   };
 
   const updateTask = async (id: string, updates: Partial<Task>) => {

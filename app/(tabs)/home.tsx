@@ -11,6 +11,8 @@ import {
   Modal,
   TextInput,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
@@ -161,9 +163,12 @@ export default function HomeScreen() {
 
   const recentlyUsed = useMemo(
     () =>
-      [...books]
-        .sort((a, b) => (b.lastOpened || 0) - (a.lastOpened || 0))
-        .slice(0, 8),
+      [...books].sort((a, b) => {
+        const aLast = a.lastOpened || a.createdAt || 0;
+        const bLast = b.lastOpened || b.createdAt || 0;
+        if (bLast !== aLast) return bLast - aLast;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      }).slice(0, 8),
     [books]
   );
   const favoritedBooks = useMemo(
@@ -427,7 +432,11 @@ export default function HomeScreen() {
         transparent
         onRequestClose={() => setShowBookModal(false)}
       >
-        <View style={StyleSheet.absoluteFill}>
+        <KeyboardAvoidingView
+          style={StyleSheet.absoluteFill}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
           <Pressable
             style={styles.sheetOverlay}
             onPress={() => {
@@ -439,7 +448,7 @@ export default function HomeScreen() {
           <View
             style={[
               styles.sheet,
-              { paddingBottom: Math.max(insets.bottom, 20) + 16 },
+              { paddingBottom: Math.max(insets.bottom, 0) + 1 },
             ]}
           >
             <View style={styles.sheetHandle} />
@@ -497,7 +506,7 @@ export default function HomeScreen() {
               </PressableScale>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -790,7 +799,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 12,
-    paddingTop: 8,
+    paddingTop: 0,
   },
   sheetCancel: {
     paddingVertical: 10,

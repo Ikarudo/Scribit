@@ -315,14 +315,16 @@ export const RemindersProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const createReminderForTask = async (task: Task) => {
-    if (!task.dueDate || !task.dueTime) return;
-    const triggerDate = parseDateTime(task.dueDate, task.dueTime);
+    if (!task.dueDate) return;
+    // Use default 09:00 when dueTime not set, so reminders work even without specific time
+    const time = task.dueTime || '09:00';
+    const triggerDate = parseDateTime(task.dueDate, time);
     if (!triggerDate || triggerDate <= new Date()) return;
 
     await createReminder({
       title: task.name || 'Task Reminder',
       date: task.dueDate,
-      time: task.dueTime,
+      time,
       source: 'task',
       sourceId: task.id,
     });
