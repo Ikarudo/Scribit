@@ -2,6 +2,8 @@ Scribit - The Note App
 
 A comprehensive mobile application designed to streamline academic workflows by consolidating note-taking, scheduling, task management, and reminders into a single, unified platform built specifically for students.
 
+## *Check Out The Latest Release!* ##
+
 ## Overview ##
 
 Scribit addresses the persistent challenge of fragmented educational tools that fail to meet the comprehensive needs of modern students. While existing solutions like Notion and Microsoft OneNote offer robust organisational capabilities, 
