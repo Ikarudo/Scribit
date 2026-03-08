@@ -1,20 +1,14 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   Alert,
-  Pressable,
+  Image,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from 'react-native-reanimated';
+import { Text, useTheme, Surface, Switch, List } from 'react-native-paper';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/FirebaseConfig';
 import { useRouter } from 'expo-router';
@@ -24,110 +18,26 @@ import { useNotes } from '@/components/NotesProvider';
 import { useTasks } from '@/components/TasksProvider';
 import { useCalendar } from '@/components/CalendarProvider';
 import { useReminders } from '@/components/RemindersProvider';
+import { useAppTheme } from '@/components/ThemeContext';
+import { cardTintsLight, cardTintsDark } from '@/theme';
 import EditProfileModal from '@/components/EditProfileModal';
+import { PressableScale } from '@/components/ui/PressableScale';
+import * as ImagePicker from 'expo-image-picker';
+import type { AppTheme } from '@/theme';
 
 const LIST_PAD = 20;
-const springConfig = { damping: 14, stiffness: 380 };
 
-// Authentic Material 3 Light Theme Color Scheme - matching HomeScreen
-const M3 = {
-  // Surface colors
-  background: '#FEF7FF',
-  surface: '#FEF7FF',
-  surfaceContainerLowest: '#FFFFFF',
-  surfaceContainerLow: '#F8F2FA',
-  surfaceContainer: '#F2ECF4',
-  surfaceContainerHigh: '#ECE6EE',
-  surfaceContainerHighest: '#E7E0E8',
-  
-  // Primary colors
-  primary: '#6750A4',
-  onPrimary: '#FFFFFF',
-  primaryContainer: '#E9DDFF',
-  onPrimaryContainer: '#22005D',
-  
-  // Secondary colors
-  secondary: '#625B71',
-  onSecondary: '#FFFFFF',
-  secondaryContainer: '#E8DEF8',
-  onSecondaryContainer: '#1E192B',
-  
-  // Tertiary colors
-  tertiary: '#7E5260',
-  onTertiary: '#FFFFFF',
-  tertiaryContainer: '#FFD9E3',
-  onTertiaryContainer: '#31101D',
-  
-  // Text colors
-  onSurface: '#1D1B20',
-  onSurfaceVariant: '#49454E',
-  
-  // Outline colors
-  outline: '#7A757F',
-  outlineVariant: '#CAC4CF',
-  
-  // Error colors
-  error: '#BA1A1A',
-  onError: '#FFFFFF',
-  errorContainer: '#FFDAD6',
-  onErrorContainer: '#410002',
-  
-  // Other
-  scrim: 'rgba(0, 0, 0, 0.4)',
-  shadow: '#000000',
-  
-  // Card tints
-  cardTints: [
-    '#F6EDFF',  // primary tint
-    '#E8DEF8',  // secondary tint  
-    '#FFD9E3',  // tertiary tint
-    '#E8F5E9',  // green tint
-    '#FFF8E1',  // amber tint
-    '#E3F2FD',  // blue tint
-  ],
-  
-  // Stat colors - using M3 palette derivatives
-  stat: { 
-    books: '#6750A4',    // primary
-    tasks: '#2E7D32',    // green
-    events: '#C62828',   // red
-    reminders: '#F57C00' // orange
-  },
+const STAT_COLORS = {
+  books: '#6750A4',
+  tasks: '#2E7D32',
+  events: '#C62828',
+  reminders: '#F57C00',
 };
-
-function PressableScale({
-  children,
-  onPress,
-  style,
-  contentStyle,
-}: {
-  children: React.ReactNode;
-  onPress?: () => void;
-  style?: object;
-  contentStyle?: object;
-}) {
-  const scale = useSharedValue(1);
-  const s = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-  return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => {
-        scale.value = withSpring(0.96, springConfig);
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, springConfig);
-      }}
-      style={style}
-    >
-      <Animated.View style={[s, contentStyle]}>{children}</Animated.View>
-    </Pressable>
-  );
-}
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const theme = useTheme<AppTheme>();
+  const { isDark, setDarkMode } = useAppTheme();
   const { user, loading: authLoading } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useUserProfile();
   const { books } = useNotes();
@@ -136,6 +46,40 @@ export default function ProfileScreen() {
   const { reminders } = useReminders();
   const router = useRouter();
   const [showEditModal, setShowEditModal] = useState(false);
+
+  const cardTints = isDark ? cardTintsDark : cardTintsLight;
+
+  const handlePickAvatar = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert(
+          'Permission needed',
+          'Please allow access to your photos to set a profile picture.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaType.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const uri = result.assets[0].uri;
+      if (!uri) return;
+
+      await updateProfile({ avatarUri: uri });
+    } catch (error) {
+      console.error('Error picking profile image:', error);
+      Alert.alert('Error', 'Unable to update profile picture. Please try again.');
+    }
+  };
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -150,7 +94,7 @@ export default function ProfileScreen() {
             try {
               await signOut(auth);
               router.replace('/');
-            } catch (error: any) {
+            } catch (error: unknown) {
               Alert.alert('Error', 'Failed to sign out. Please try again.');
               console.error('Sign out error:', error);
             }
@@ -175,11 +119,11 @@ export default function ProfileScreen() {
 
   if (authLoading || profileLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: M3.background }]} edges={['top']}>
+      <Surface style={[styles.container, { backgroundColor: theme.colors.background }]} elevation={0}>
         <View style={styles.loadingRoot}>
-          <Text style={[styles.loadingText, { color: M3.onSurfaceVariant }]}>Loading...</Text>
+          <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>Loading...</Text>
         </View>
-      </SafeAreaView>
+      </Surface>
     );
   }
 
@@ -196,7 +140,7 @@ export default function ProfileScreen() {
   const scrollTop = 24 + insets.top;
 
   return (
-    <View style={[styles.container, { backgroundColor: M3.background }]}>
+    <Surface style={[styles.container, { backgroundColor: theme.colors.background }]} elevation={0}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -204,8 +148,10 @@ export default function ProfileScreen() {
           { paddingTop: scrollTop, paddingBottom: scrollBottom },
         ]}
       >
-        <Text style={styles.headline}>Your space</Text>
-        <Text style={styles.subhead}>
+        <Text variant="headlineLarge" style={[styles.headline, { color: theme.colors.onSurface }]}>
+          Your space
+        </Text>
+        <Text variant="titleMedium" style={[styles.subhead, { color: theme.colors.onSurfaceVariant }]}>
           Hey, {profile?.username || 'User'} 👋
         </Text>
 
@@ -213,28 +159,41 @@ export default function ProfileScreen() {
         <PressableScale
           onPress={() => setShowEditModal(true)}
           style={styles.userCardWrap}
-          contentStyle={[styles.userCard, { backgroundColor: M3.cardTints[0] }]}
+          contentStyle={[styles.userCard, { backgroundColor: cardTints[0], shadowColor: theme.colors.shadow }]}
         >
           <View style={styles.avatarRow}>
-            <View style={styles.avatarOuter}>
-              <View style={styles.avatarCircle}>
-                <FontAwesome5 name="user" size={40} color={M3.primary} />
-              </View>
-              <TouchableOpacity
-                style={styles.editBadge}
-                onPress={() => setShowEditModal(true)}
-                hitSlop={8}
+            <PressableScale
+              onPress={handlePickAvatar}
+              style={styles.avatarOuter}
+              contentStyle={styles.avatarOuter}
+            >
+              <View
+                style={[
+                  styles.avatarCircle,
+                  { backgroundColor: theme.colors.surface, borderColor: theme.colors.primaryContainer },
+                ]}
               >
-                <Feather name="edit-2" size={14} color={M3.onPrimary} />
-              </TouchableOpacity>
-            </View>
+                {profile?.avatarUri ? (
+                  <Image source={{ uri: profile.avatarUri }} style={styles.avatarImage} />
+                ) : (
+                  <FontAwesome5 name="user" size={40} color={theme.colors.primary} />
+                )}
+              </View>
+              <View style={[styles.editBadge, { backgroundColor: theme.colors.primary, borderColor: cardTints[0] }]}>
+                <Feather name="camera" size={14} color={theme.colors.onPrimary} />
+              </View>
+            </PressableScale>
           </View>
-          <Text style={styles.username}>{profile?.username || 'User'}</Text>
-          <Text style={styles.userEmail}>{user?.email || 'No email'}</Text>
+          <Text variant="titleLarge" style={[styles.username, { color: theme.colors.onSurface }]}>
+            {profile?.username || 'User'}
+          </Text>
+          <Text variant="bodyMedium" style={[styles.userEmail, { color: theme.colors.onSurfaceVariant }]}>
+            {user?.email || 'No email'}
+          </Text>
           {profile?.createdAt && (
-            <View style={styles.memberChip}>
-              <Feather name="calendar" size={12} color={M3.onSurfaceVariant} />
-              <Text style={styles.memberSince}>
+            <View style={[styles.memberChip, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <Feather name="calendar" size={12} color={theme.colors.onSurfaceVariant} />
+              <Text variant="labelMedium" style={[styles.memberSince, { color: theme.colors.onSurfaceVariant }]}>
                 Member since {formatDate(profile.createdAt)}
               </Text>
             </View>
@@ -242,82 +201,102 @@ export default function ProfileScreen() {
         </PressableScale>
 
         {/* Stats */}
-        <Text style={styles.sectionTitle}>Quick stats</Text>
+        <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+          Quick stats
+        </Text>
         <View style={styles.statsGrid}>
-          <View style={[styles.statCard, { backgroundColor: M3.cardTints[0] }]}>
-            <View style={[styles.statIconWrap, { backgroundColor: M3.primaryContainer }]}>
-              <FontAwesome5 name="book" size={22} color={M3.stat.books} />
+          <View style={[styles.statCard, { backgroundColor: cardTints[0], shadowColor: theme.colors.shadow }]}>
+            <View style={[styles.statIconWrap, { backgroundColor: theme.colors.primaryContainer }]}>
+              <FontAwesome5 name="book" size={22} color={STAT_COLORS.books} />
             </View>
-            <Text style={styles.statNumber}>{stats.books}</Text>
-            <Text style={styles.statLabel}>Books</Text>
+            <Text variant="headlineMedium" style={[styles.statNumber, { color: theme.colors.onSurface }]}>{stats.books}</Text>
+            <Text variant="labelLarge" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Books</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: M3.cardTints[3] }]}>
+          <View style={[styles.statCard, { backgroundColor: cardTints[3], shadowColor: theme.colors.shadow }]}>
             <View style={[styles.statIconWrap, { backgroundColor: '#C8E6C9' }]}>
-              <FontAwesome5 name="check-square" size={22} color={M3.stat.tasks} />
+              <FontAwesome5 name="check-square" size={22} color={STAT_COLORS.tasks} />
             </View>
-            <Text style={styles.statNumber}>{stats.tasks}</Text>
-            <Text style={styles.statLabel}>Tasks</Text>
+            <Text variant="headlineMedium" style={[styles.statNumber, { color: theme.colors.onSurface }]}>{stats.tasks}</Text>
+            <Text variant="labelLarge" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Tasks</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: M3.cardTints[2] }]}>
+          <View style={[styles.statCard, { backgroundColor: cardTints[2], shadowColor: theme.colors.shadow }]}>
             <View style={[styles.statIconWrap, { backgroundColor: '#FFCDD2' }]}>
-              <FontAwesome5 name="calendar" size={22} color={M3.stat.events} />
+              <FontAwesome5 name="calendar" size={22} color={STAT_COLORS.events} />
             </View>
-            <Text style={styles.statNumber}>{stats.events}</Text>
-            <Text style={styles.statLabel}>Events</Text>
+            <Text variant="headlineMedium" style={[styles.statNumber, { color: theme.colors.onSurface }]}>{stats.events}</Text>
+            <Text variant="labelLarge" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Events</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: M3.cardTints[4] }]}>
+          <View style={[styles.statCard, { backgroundColor: cardTints[4], shadowColor: theme.colors.shadow }]}>
             <View style={[styles.statIconWrap, { backgroundColor: '#FFE0B2' }]}>
-              <FontAwesome5 name="bell" size={22} color={M3.stat.reminders} />
+              <FontAwesome5 name="bell" size={22} color={STAT_COLORS.reminders} />
             </View>
-            <Text style={styles.statNumber}>{stats.reminders}</Text>
-            <Text style={styles.statLabel}>Reminders</Text>
+            <Text variant="headlineMedium" style={[styles.statNumber, { color: theme.colors.onSurface }]}>{stats.reminders}</Text>
+            <Text variant="labelLarge" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Reminders</Text>
           </View>
         </View>
 
         {/* Task progress */}
         {stats.tasks > 0 && (
           <>
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+            <Text variant="titleMedium" style={[styles.sectionTitle, { marginTop: 24, color: theme.colors.onSurface }]}>
               {progressPct === 0 ? 'Your progress' : progressPct === 100 ? 'All done!' : "You're on a roll"}
             </Text>
-            <View style={[styles.progressCard, { backgroundColor: M3.cardTints[1] }]}>
+            <View style={[styles.progressCard, { backgroundColor: cardTints[1], shadowColor: theme.colors.shadow }]}>
               <View style={styles.progressHeader}>
-                <Text style={styles.progressText}>
+                <Text variant="bodyLarge" style={{ color: theme.colors.onSurface }}>
                   {stats.completedTasks} of {stats.tasks} done
                 </Text>
-                <Text style={styles.progressPercent}>{progressPct}%</Text>
+                <Text variant="titleMedium" style={{ color: theme.colors.primary }}>{progressPct}%</Text>
               </View>
-              <View style={styles.progressBar}>
+              <View style={[styles.progressBar, { backgroundColor: theme.colors.surfaceVariant }]}>
                 <View
                   style={[
                     styles.progressFill,
-                    { width: `${progressPct}%` },
+                    { width: `${progressPct}%`, backgroundColor: theme.colors.primary },
                   ]}
                 />
               </View>
               {progressPct === 100 && (
-                <Text style={styles.progressCelebrate}>🎉 Great job completing all your tasks!</Text>
+                <Text variant="bodyMedium" style={[styles.progressCelebrate, { color: theme.colors.primary }]}>
+                  🎉 Great job completing all your tasks!
+                </Text>
               )}
             </View>
           </>
         )}
 
-        {/* Settings */}
-        <Text style={[styles.sectionTitle, { marginTop: stats.tasks > 0 ? 24 : 0 }]}>Account</Text>
-        <View style={styles.settingsBlock}>
+        {/* Account */}
+        <Text variant="titleMedium" style={[styles.sectionTitle, { marginTop: stats.tasks > 0 ? 24 : 0, color: theme.colors.onSurface }]}>
+          Account
+        </Text>
+        <View style={[styles.settingsBlock, { backgroundColor: theme.colors.surfaceVariant, shadowColor: theme.colors.shadow }]}>
+          {/* Dark mode toggle */}
+          <List.Item
+            title="Dark mode"
+            description="Use dark theme"
+            left={(props) => <List.Icon {...props} icon="brightness-6" />}
+            right={() => (
+              <Switch
+                value={isDark}
+                onValueChange={setDarkMode}
+                color={theme.colors.primary}
+              />
+            )}
+            style={styles.settingRow}
+          />
           <PressableScale
             onPress={() => setShowEditModal(true)}
             style={styles.settingRowWrap}
-            contentStyle={styles.settingRow}
+            contentStyle={[styles.settingRow, { borderBottomColor: theme.colors.outlineVariant }]}
           >
-            <View style={[styles.settingIconWrap, { backgroundColor: M3.primaryContainer }]}>
-              <FontAwesome5 name="user" size={18} color={M3.primary} />
+            <View style={[styles.settingIconWrap, { backgroundColor: theme.colors.primaryContainer }]}>
+              <FontAwesome5 name="user" size={18} color={theme.colors.primary} />
             </View>
             <View style={styles.settingBody}>
-              <Text style={styles.settingTitle}>Edit profile</Text>
-              <Text style={styles.settingSub}>Change your username</Text>
+              <Text variant="bodyLarge" style={[styles.settingTitle, { color: theme.colors.onSurface }]}>Edit profile</Text>
+              <Text variant="bodyMedium" style={[styles.settingSub, { color: theme.colors.onSurfaceVariant }]}>Change your username</Text>
             </View>
-            <Feather name="chevron-right" size={20} color={M3.onSurfaceVariant} />
+            <Feather name="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
           </PressableScale>
 
           <PressableScale
@@ -325,14 +304,14 @@ export default function ProfileScreen() {
             style={styles.settingRowWrap}
             contentStyle={[styles.settingRow, styles.settingRowLast]}
           >
-            <View style={[styles.settingIconWrap, { backgroundColor: M3.errorContainer }]}>
-              <FontAwesome5 name="sign-out-alt" size={18} color={M3.error} />
+            <View style={[styles.settingIconWrap, { backgroundColor: theme.colors.errorContainer }]}>
+              <FontAwesome5 name="sign-out-alt" size={18} color={theme.colors.error} />
             </View>
             <View style={styles.settingBody}>
-              <Text style={[styles.settingTitle, { color: M3.error }]}>Sign out</Text>
-              <Text style={styles.settingSub}>Sign out of your account</Text>
+              <Text variant="bodyLarge" style={[styles.settingTitle, { color: theme.colors.error }]}>Sign out</Text>
+              <Text variant="bodyMedium" style={[styles.settingSub, { color: theme.colors.onSurfaceVariant }]}>Sign out of your account</Text>
             </View>
-            <Feather name="chevron-right" size={20} color={M3.onSurfaceVariant} />
+            <Feather name="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
           </PressableScale>
         </View>
       </ScrollView>
@@ -343,7 +322,7 @@ export default function ProfileScreen() {
         onSave={handleSaveProfile}
         currentUsername={profile?.username || ''}
       />
-    </View>
+    </Surface>
   );
 }
 
@@ -356,33 +335,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  loadingText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
   scrollContent: {
     paddingHorizontal: LIST_PAD,
   },
   headline: {
-    fontSize: 32,
-    fontWeight: '400',
-    color: M3.onSurface,
-    letterSpacing: 0,
     marginBottom: 4,
   },
   subhead: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: M3.onSurfaceVariant,
     marginBottom: 24,
-    letterSpacing: 0.15,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '400',
-    color: M3.onSurface,
     marginBottom: 16,
-    letterSpacing: 0,
   },
   userCardWrap: {
     width: '100%',
@@ -393,7 +356,6 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     overflow: 'hidden',
-    shadowColor: M3.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -409,11 +371,15 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: M3.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: M3.primaryContainer,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 48,
+    resizeMode: 'cover',
   },
   editBadge: {
     position: 'absolute',
@@ -422,29 +388,19 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: M3.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: M3.cardTints[0],
-    shadowColor: M3.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
   },
   username: {
-    fontSize: 22,
-    fontWeight: '500',
-    color: M3.onSurface,
     marginBottom: 4,
-    letterSpacing: 0,
   },
   userEmail: {
-    fontSize: 14,
-    color: M3.onSurfaceVariant,
     marginBottom: 12,
-    letterSpacing: 0.25,
   },
   memberChip: {
     flexDirection: 'row',
@@ -453,14 +409,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: M3.surfaceContainerHighest,
   },
-  memberSince: {
-    fontSize: 12,
-    color: M3.onSurfaceVariant,
-    fontWeight: '500',
-    letterSpacing: 0.4,
-  },
+  memberSince: {},
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -473,7 +423,6 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
     overflow: 'hidden',
-    shadowColor: M3.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -488,24 +437,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   statNumber: {
-    fontSize: 28,
-    fontWeight: '400',
-    color: M3.onSurface,
     marginBottom: 2,
-    letterSpacing: 0,
   },
-  statLabel: {
-    fontSize: 14,
-    color: M3.onSurfaceVariant,
-    fontWeight: '500',
-    letterSpacing: 0.1,
-  },
+  statLabel: {},
   progressCard: {
     borderRadius: 20,
     padding: 20,
     marginBottom: 32,
     overflow: 'hidden',
-    shadowColor: M3.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -517,42 +456,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  progressText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: M3.onSurface,
-    letterSpacing: 0.15,
-  },
-  progressPercent: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: M3.primary,
-    letterSpacing: 0,
-  },
   progressBar: {
     height: 12,
-    backgroundColor: M3.surfaceContainerHighest,
     borderRadius: 6,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: M3.primary,
     borderRadius: 6,
   },
   progressCelebrate: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: M3.primary,
     marginTop: 12,
     textAlign: 'center',
-    letterSpacing: 0.1,
   },
   settingsBlock: {
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: M3.surfaceContainerLow,
-    shadowColor: M3.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -567,7 +486,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: M3.outlineVariant,
   },
   settingRowLast: {
     borderBottomWidth: 0,
@@ -584,16 +502,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   settingTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: M3.onSurface,
     marginBottom: 2,
-    letterSpacing: 0.15,
   },
-  settingSub: {
-    fontSize: 14,
-    color: M3.onSurfaceVariant,
-    fontWeight: '400',
-    letterSpacing: 0.25,
-  },
+  settingSub: {},
 });

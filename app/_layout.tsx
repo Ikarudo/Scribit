@@ -1,17 +1,17 @@
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/components/useColorScheme';
 import { NotesProvider } from '@/components/NotesProvider';
 import { CalendarProvider } from '@/components/CalendarProvider';
 import { TasksProvider } from '@/components/TasksProvider';
 import { RemindersProvider } from '@/components/RemindersProvider';
 import { UserProfileProvider } from '@/components/UserProfileProvider';
+import { ThemeProvider, useNavigationTheme } from '@/components/ThemeContext';
 import { useAuth } from '@/components/useAuth';
 
 export {
@@ -53,7 +53,9 @@ export default function RootLayout() {
       <CalendarProvider>
         <TasksProvider>
           <RemindersProvider>
-        <RootLayoutNav />
+            <ThemeProvider>
+              <RootLayoutNav />
+            </ThemeProvider>
           </RemindersProvider>
         </TasksProvider>
       </CalendarProvider>
@@ -62,18 +64,18 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const navTheme = useNavigationTheme();
   const { user } = useAuth();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <NavThemeProvider value={navTheme}>
       <UserProfileProvider user={user}>
-      <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-      </Stack>
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        </Stack>
       </UserProfileProvider>
-    </ThemeProvider>
+    </NavThemeProvider>
   );
 }

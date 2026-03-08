@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  Pressable,
   ScrollView,
   Alert,
   Modal,
@@ -13,149 +12,53 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from 'react-native-reanimated';
+import { useTheme } from 'react-native-paper';
 import { useNotes, Book } from '@/components/NotesProvider';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/components/useAuth';
+import { useIsDark } from '@/components/ThemeContext';
+import { cardTintsLight, cardTintsDark } from '@/theme';
+import { getLogoSource } from '@/constants/images';
 import { getBookIconSource, BOOK_ICONS } from '@/components/BookIcons';
+import { PressableScale } from '@/components/ui/PressableScale';
+import type { AppTheme } from '@/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HORIZ_CARD_WIDTH = 148;
 const HORIZ_CARD_GAP = 14;
 const LIST_PAD = 20;
-
-// Authentic Material 3 Light Theme Color Scheme
-// Based on M3 tonal palette system with proper token naming
-const M3 = {
-  // Surface colors - from neutral tonal palette
-  background: '#FEF7FF',
-  surface: '#FEF7FF',             
-  surfaceContainerLowest: '#FFFFFF',
-  surfaceContainerLow: '#F8F2FA',
-  surfaceContainer: '#F2ECF4',     // tone 94
-  surfaceContainerHigh: '#ECE6EE',  // tone 92
-  surfaceContainerHighest: '#E7E0E8', // tone 90
-  
-  // Primary colors - purple tonal palette
-  primary: '#6750A4',              // primary (tone 40)
-  onPrimary: '#FFFFFF',            // on-primary
-  primaryContainer: '#E9DDFF',     // primary-container (tone 90)
-  onPrimaryContainer: '#22005D',   // on-primary-container (tone 10)
-  
-  // Secondary colors - purple tonal palette  
-  secondary: '#625B71',            // secondary (tone 40)
-  onSecondary: '#FFFFFF',
-  secondaryContainer: '#E8DEF8',   // secondary-container (tone 90)
-  onSecondaryContainer: '#1E192B',
-  
-  // Tertiary colors - pink tonal palette
-  tertiary: '#7E5260',             // tertiary (tone 40)
-  onTertiary: '#FFFFFF',
-  tertiaryContainer: '#FFD9E3',    // tertiary-container (tone 90)
-  onTertiaryContainer: '#31101D',
-  
-  // Text colors
-  onSurface: '#1D1B20',            // on-surface (tone 10)
-  onSurfaceVariant: '#49454E',     // on-surface-variant (tone 30)
-  
-  // Outline colors
-  outline: '#7A757F',              // outline (tone 50)
-  outlineVariant: '#CAC4CF',       // outline-variant (tone 80)
-  
-  // Error colors
-  error: '#BA1A1A',
-  onError: '#FFFFFF',
-  errorContainer: '#FFDAD6',
-  onErrorContainer: '#410002',
-  
-  // Inverse colors
-  inverseSurface: '#313033',
-  inverseOnSurface: '#F5EFF4',
-  inversePrimary: '#CFBCFF',
-  
-  // Other
-  scrim: 'rgba(0, 0, 0, 0.4)',
-  shadow: '#000000',
-  
-  // Custom accent colors for cards (using tertiary and secondary tints)
-  cardTints: [
-    '#F6EDFF',  // primary tint
-    '#E8DEF8',  // secondary tint  
-    '#FFD9E3',  // tertiary tint
-    '#E8F5E9',  // green tint (custom)
-    '#FFF8E1',  // amber tint (custom)
-    '#E3F2FD',  // blue tint (custom)
-  ],
-  
-  // Star color (amber)
-  star: '#FFAB00',
-  starOutline: '#9E7900',
-};
-
-const springConfig = { damping: 14, stiffness: 380 };
-
-function PressableScale({
-  children,
-  onPress,
-  style,
-  contentStyle,
-}: {
-  children: React.ReactNode;
-  onPress?: () => void;
-  style?: object;
-  contentStyle?: object;
-}) {
-  const scale = useSharedValue(1);
-  const s = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-  return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => {
-        scale.value = withSpring(0.96, springConfig);
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, springConfig);
-      }}
-      style={style}
-    >
-      <Animated.View style={[s, contentStyle]}>{children}</Animated.View>
-    </Pressable>
-  );
-}
-
-function EmptyState({
-  icon,
-  message,
-  style,
-}: {
-  icon: 'book-open' | 'book' | 'star';
-  message: string;
-  style?: object;
-}) {
-  return (
-    <View style={[styles.emptyRoot, style]}>
-      <View style={styles.emptyIconWrap}>
-        <Feather name={icon} size={40} color={M3.outline} />
-      </View>
-      <Text style={styles.emptyText}>{message}</Text>
-    </View>
-  );
-}
+const STAR_COLOR = '#FFAB00';
 
 export default function HomeScreen() {
+  const theme = useTheme<AppTheme>();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const isDark = useIsDark();
+  const cardTints = isDark ? cardTintsDark : cardTintsLight;
   const insets = useSafeAreaInsets();
   const { loading: authLoading } = useAuth();
   const { books, toggleBookFavorite, deleteBook, createBook } = useNotes();
   const router = useRouter();
+
+  const EmptyState = ({
+    icon,
+    message,
+    style,
+  }: {
+    icon: 'book-open' | 'book' | 'star';
+    message: string;
+    style?: object;
+  }) => (
+    <View style={[styles.emptyRoot, style]}>
+      <View style={styles.emptyIconWrap}>
+        <Feather name={icon} size={40} color={theme.colors.outline} />
+      </View>
+      <Text style={styles.emptyText}>{message}</Text>
+    </View>
+  );
 
   const [showBookModal, setShowBookModal] = useState(false);
   const [newBookTitle, setNewBookTitle] = useState('');
@@ -217,7 +120,7 @@ export default function HomeScreen() {
     }
   };
 
-  const getTint = (i: number) => M3.cardTints[i % M3.cardTints.length];
+  const getTint = (i: number) => cardTints[i % cardTints.length];
 
   const tabBarClearance = 72;
   const fabBottom = tabBarClearance + insets.bottom;
@@ -225,25 +128,25 @@ export default function HomeScreen() {
 
   if (authLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: M3.background }]} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
         <View style={styles.loadingRoot}>
-          <Text style={[styles.loadingText, { color: M3.onSurfaceVariant }]}>Loading...</Text>
+          <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: M3.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <SafeAreaView edges={['top']} style={styles.safeTop}>
         {/* M3 Top app bar */}
         <View style={styles.appBar}>
           <TouchableOpacity hitSlop={16} style={styles.appBarIcon}>
-            <Feather name="menu" size={24} color={M3.onSurface} />
+            <Feather name="menu" size={24} color={theme.colors.onSurface} />
           </TouchableOpacity>
           <View style={styles.appBarCenter}>
             <Image
-              source={require('../../assets/images/Scribit Logo.png')}
+              source={getLogoSource(isDark)}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -253,7 +156,7 @@ export default function HomeScreen() {
             onPress={() => router.push('/(tabs)/profile')}
             style={styles.appBarIcon}
           >
-            <FontAwesome5 name="user-circle" size={26} color={M3.onSurface} />
+            <FontAwesome5 name="user-circle" size={26} color={theme.colors.onSurface} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -301,7 +204,7 @@ export default function HomeScreen() {
                       name="star"
                       solid={book.favorited}
                       size={18}
-                      color={book.favorited ? M3.star : M3.outline}
+                      color={book.favorited ? STAR_COLOR : theme.colors.outline}
                     />
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -309,7 +212,7 @@ export default function HomeScreen() {
                     onPress={() => handleDelete(book.id)}
                     style={styles.iconBtn}
                   >
-                    <FontAwesome5 name="trash" size={16} color={M3.error} />
+                    <FontAwesome5 name="trash" size={16} color={theme.colors.error} />
                   </TouchableOpacity>
                 </View>
               </PressableScale>
@@ -349,7 +252,7 @@ export default function HomeScreen() {
                         name="star"
                         solid={book.favorited}
                         size={18}
-                        color={book.favorited ? M3.star : M3.outline}
+                        color={book.favorited ? STAR_COLOR : theme.colors.outline}
                       />
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -357,7 +260,7 @@ export default function HomeScreen() {
                       onPress={() => handleDelete(book.id)}
                       style={styles.iconBtn}
                     >
-                      <FontAwesome5 name="trash" size={16} color={M3.error} />
+                      <FontAwesome5 name="trash" size={16} color={theme.colors.error} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -398,7 +301,7 @@ export default function HomeScreen() {
                         name="star"
                         solid={book.favorited}
                         size={18}
-                        color={book.favorited ? M3.star : M3.outline}
+                        color={book.favorited ? STAR_COLOR : theme.colors.outline}
                       />
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -406,7 +309,7 @@ export default function HomeScreen() {
                       onPress={() => handleDelete(book.id)}
                       style={styles.iconBtn}
                     >
-                      <FontAwesome5 name="trash" size={16} color={M3.error} />
+                      <FontAwesome5 name="trash" size={16} color={theme.colors.error} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -422,7 +325,7 @@ export default function HomeScreen() {
         style={[styles.fab, { bottom: fabBottom }]}
         contentStyle={styles.fabInner}
       >
-        <Feather name="plus" size={28} color={M3.onPrimary} />
+        <Feather name="plus" size={28} color={theme.colors.onPrimary} />
       </PressableScale>
 
       {/* Bottom sheet – Add book */}
@@ -458,7 +361,7 @@ export default function HomeScreen() {
               value={newBookTitle}
               onChangeText={setNewBookTitle}
               placeholder="Book title"
-              placeholderTextColor={M3.onSurfaceVariant}
+              placeholderTextColor={theme.colors.onSurfaceVariant}
               autoFocus
             />
             <Text style={styles.sheetLabel}>ICON</Text>
@@ -512,327 +415,162 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeTop: {
-    backgroundColor: 'transparent',
-  },
-  loadingRoot: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  appBar: {
-    marginHorizontal: 8,
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: M3.surface,
-    borderRadius: 28,
-    shadowColor: M3.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  appBarIcon: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appBarCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  logo: {
-    width: 66,
-    height: 62,
-  },
-  scrollContent: {
-    paddingHorizontal: LIST_PAD,
-    paddingTop: 24,
-  },
-  headline: {
-    fontSize: 32,
-    fontWeight: '400',
-    color: M3.onSurface,
-    letterSpacing: 0,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '400',
-    color: M3.onSurface,
-    marginBottom: 16,
-    letterSpacing: 0,
-  },
-  horizScrollContent: {
-    paddingRight: LIST_PAD,
-  },
-  horizCardSlot: {
-    marginRight: 0,
-  },
-  horizCardWrap: {
-    width: HORIZ_CARD_WIDTH,
-  },
-  horizCard: {
-    borderRadius: 16,
-    padding: 16,
-    minHeight: 200,
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-    shadowColor: M3.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  horizBookIcon: {
-    width: 88,
-    height: 88,
-    alignSelf: 'center',
-    marginBottom: 10,
-  },
-  horizCardTitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    fontWeight: '500',
-    color: M3.onSurface,
-    lineHeight: 20,
-    marginBottom: 10,
-    letterSpacing: 0.1,
-  },
-  horizCardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  iconBtn: {
-    padding: 8,
-    borderRadius: 20,
-  },
-  listBlock: {
-    gap: 12,
-    marginBottom: 8,
-  },
-  listRowWrap: {
-    width: '100%',
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    padding: 16,
-    overflow: 'hidden',
-    shadowColor: M3.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  listRowIconWrap: {
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  listRowIcon: {
-    width: 64,
-    height: 64,
-  },
-  listRowBody: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  listRowTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: M3.onSurface,
-    flex: 1,
-    letterSpacing: 0.1,
-  },
-  listRowActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  emptyRoot: {
-    paddingVertical: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: M3.surfaceContainerHighest,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: M3.onSurfaceVariant,
-    fontWeight: '500',
-    letterSpacing: 0.1,
-  },
-  fab: {
-    position: 'absolute',
-    right: LIST_PAD,
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    shadowColor: M3.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  fabInner: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 16,
-    backgroundColor: M3.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: M3.scrim,
-  },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: M3.surfaceContainerLow,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    shadowColor: M3.shadow,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 12,
-    maxHeight: '88%',
-  },
-  sheetHandle: {
-    width: 32,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: M3.onSurfaceVariant,
-    opacity: 0.4,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  sheetTitle: {
-    fontSize: 24,
-    fontWeight: '400',
-    color: M3.onSurface,
-    marginBottom: 20,
-    letterSpacing: 0,
-  },
-  sheetInput: {
-    borderRadius: 12,
-    backgroundColor: M3.surfaceContainerHighest,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: M3.onSurface,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: M3.outline,
-  },
-  sheetLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: M3.onSurfaceVariant,
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  sheetIconScroll: {
-    maxHeight: 180,
-    marginBottom: 24,
-  },
-  sheetIconGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  sheetIconOption: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: M3.outline,
-    backgroundColor: M3.surfaceContainerHighest,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  sheetIconSelected: {
-    borderWidth: 2,
-    borderColor: M3.primary,
-    backgroundColor: M3.secondaryContainer,
-  },
-  sheetIconImg: {
-    width: '85%',
-    height: '85%',
-  },
-  sheetActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 12,
-    paddingTop: 0,
-  },
-  sheetCancel: {
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 20,
-  },
-  sheetCancelText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: M3.primary,
-    letterSpacing: 0.1,
-  },
-  sheetAddWrap: {
-    alignSelf: 'flex-start',
-  },
-  sheetAdd: {
-    backgroundColor: M3.primary,
-    borderRadius: 20,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    minWidth: 90,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: M3.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  sheetAddText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: M3.onPrimary,
-    letterSpacing: 0.1,
-  },
-});
+function createStyles(theme: AppTheme) {
+  const c = theme.colors;
+  return StyleSheet.create({
+    container: { flex: 1 },
+    safeTop: { backgroundColor: 'transparent' },
+    loadingRoot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    loadingText: { fontSize: 16, fontWeight: '500' },
+    appBar: {
+      marginHorizontal: 8,
+      marginTop: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      backgroundColor: c.surface,
+      borderRadius: 28,
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    appBarIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    appBarCenter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    logo: { width: 66, height: 62 },
+    scrollContent: { paddingHorizontal: LIST_PAD, paddingTop: 24 },
+    headline: { fontSize: 32, fontWeight: '400', color: c.onSurface, letterSpacing: 0, marginBottom: 24 },
+    sectionTitle: { fontSize: 22, fontWeight: '400', color: c.onSurface, marginBottom: 16, letterSpacing: 0 },
+    horizScrollContent: { paddingRight: LIST_PAD },
+    horizCardSlot: { marginRight: 0 },
+    horizCardWrap: { width: HORIZ_CARD_WIDTH },
+    horizCard: {
+      borderRadius: 16,
+      padding: 16,
+      minHeight: 200,
+      justifyContent: 'space-between',
+      overflow: 'hidden',
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 3,
+      elevation: 1,
+    },
+    horizBookIcon: { width: 88, height: 88, alignSelf: 'center', marginBottom: 10 },
+    horizCardTitle: { fontSize: 16, textAlign: 'center', fontWeight: '500', color: c.onSurface, lineHeight: 20, marginBottom: 10, letterSpacing: 0.1 },
+    horizCardActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+    iconBtn: { padding: 8, borderRadius: 20 },
+    listBlock: { gap: 12, marginBottom: 8 },
+    listRowWrap: { width: '100%' },
+    listRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 16,
+      padding: 16,
+      overflow: 'hidden',
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 3,
+      elevation: 1,
+    },
+    listRowIconWrap: { backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+    listRowIcon: { width: 64, height: 64 },
+    listRowBody: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    listRowTitle: { fontSize: 16, fontWeight: '500', color: c.onSurface, flex: 1, letterSpacing: 0.1 },
+    listRowActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    emptyRoot: { paddingVertical: 40, alignItems: 'center', justifyContent: 'center' },
+    emptyIconWrap: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: c.surfaceVariant,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    emptyText: { fontSize: 14, color: c.onSurfaceVariant, fontWeight: '500', letterSpacing: 0.1 },
+    fab: {
+      position: 'absolute',
+      right: LIST_PAD,
+      width: 56,
+      height: 56,
+      borderRadius: 16,
+      shadowColor: c.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    fabInner: { width: '100%', height: '100%', borderRadius: 16, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
+    sheetOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: c.scrim },
+    sheet: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: c.surfaceVariant,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingHorizontal: 24,
+      paddingTop: 12,
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 16,
+      elevation: 12,
+      maxHeight: '88%',
+    },
+    sheetHandle: { width: 32, height: 4, borderRadius: 2, backgroundColor: c.onSurfaceVariant, opacity: 0.4, alignSelf: 'center', marginBottom: 20 },
+    sheetTitle: { fontSize: 24, fontWeight: '400', color: c.onSurface, marginBottom: 20, letterSpacing: 0 },
+    sheetInput: {
+      borderRadius: 12,
+      backgroundColor: c.surfaceVariant,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+      fontSize: 16,
+      color: c.onSurface,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: c.outline,
+    },
+    sheetLabel: { fontSize: 11, fontWeight: '500', color: c.onSurfaceVariant, letterSpacing: 0.5, marginBottom: 12 },
+    sheetIconScroll: { maxHeight: 180, marginBottom: 24 },
+    sheetIconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    sheetIconOption: {
+      width: 60,
+      height: 60,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.outline,
+      backgroundColor: c.surfaceVariant,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    sheetIconSelected: { borderWidth: 2, borderColor: c.primary, backgroundColor: c.secondaryContainer },
+    sheetIconImg: { width: '85%', height: '85%' },
+    sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 12, paddingTop: 0 },
+    sheetCancel: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 20 },
+    sheetCancelText: { fontSize: 14, fontWeight: '500', color: c.primary, letterSpacing: 0.1 },
+    sheetAddWrap: { alignSelf: 'flex-start' },
+    sheetAdd: {
+      backgroundColor: c.primary,
+      borderRadius: 20,
+      paddingHorizontal: 24,
+      paddingVertical: 10,
+      minWidth: 90,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 3,
+      elevation: 2,
+    },
+    sheetAddText: { fontSize: 14, fontWeight: '500', color: c.onPrimary, letterSpacing: 0.1 },
+  });
+}

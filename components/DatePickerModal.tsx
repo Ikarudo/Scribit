@@ -1,19 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
+import { useTheme } from 'react-native-paper';
 import { Feather } from '@expo/vector-icons';
-
-const M3 = {
-  surface: '#FFFFFF',
-  primary: '#7C5DE8',
-  primaryContainer: '#E8E0FC',
-  onPrimary: '#FFFFFF',
-  onSurface: '#1C1B22',
-  onSurfaceVariant: '#5C5868',
-  outline: '#D4CFE0',
-  outlineVariant: '#E6E1ED',
-  surfaceContainerHigh: '#F0EBF8',
-  scrim: 'rgba(28, 27, 34, 0.4)',
-};
+import type { AppTheme } from '@/theme';
 
 type DatePickerModalProps = {
   visible: boolean;
@@ -29,12 +18,118 @@ const MONTHS = [
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+function createStyles(theme: AppTheme) {
+  const c = theme.colors;
+  return StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: c.scrim,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modal: {
+      width: '90%',
+      maxWidth: 400,
+      backgroundColor: c.surface,
+      borderRadius: 24,
+      padding: 24,
+      borderWidth: 1,
+      borderColor: c.outline,
+      shadowColor: '#000',
+      shadowOpacity: 0.15,
+      shadowOffset: { width: 0, height: 4 },
+      shadowRadius: 16,
+      elevation: 8,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: c.onSurface,
+      letterSpacing: -0.3,
+    },
+    closeButton: { padding: 8 },
+    navigation: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    navButton: { padding: 8 },
+    todayButton: {
+      paddingVertical: 10,
+      paddingHorizontal: 18,
+      backgroundColor: c.primaryContainer,
+      borderRadius: 14,
+    },
+    todayText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: c.primary,
+    },
+    monthYear: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.onSurface,
+    },
+    daysOfWeekRow: {
+      flexDirection: 'row',
+      marginBottom: 8,
+    },
+    dayOfWeekCell: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 8,
+    },
+    dayOfWeekText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: c.onSurfaceVariant,
+    },
+    calendarGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    dayCell: {
+      width: '14.28%',
+      aspectRatio: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 12,
+    },
+    todayCell: {
+      backgroundColor: c.primaryContainer,
+      borderWidth: 2,
+      borderColor: c.primary,
+    },
+    selectedCell: {
+      backgroundColor: c.primary,
+    },
+    dayNumber: {
+      fontSize: 14,
+      color: c.onSurface,
+      fontWeight: '600',
+    },
+    selectedText: {
+      color: c.onPrimary,
+      fontWeight: 'bold',
+    },
+  });
+}
+
 export default function DatePickerModal({
   visible,
   onClose,
   onSelectDate,
   initialDate,
 }: DatePickerModalProps) {
+  const theme = useTheme<AppTheme>();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const today = new Date();
   
   // Parse date string (YYYY-MM-DD) without timezone issues
@@ -130,14 +225,14 @@ export default function DatePickerModal({
           <View style={styles.header}>
             <Text style={styles.title}>Select date</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Feather name="x" size={24} color={M3.onSurface} />
+              <Feather name="x" size={24} color={theme.colors.onSurface} />
             </TouchableOpacity>
           </View>
 
           {/* Month Navigation */}
           <View style={styles.navigation}>
             <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton}>
-              <Feather name="chevron-left" size={24} color={M3.onSurface} />
+              <Feather name="chevron-left" size={24} color={theme.colors.onSurface} />
             </TouchableOpacity>
             <TouchableOpacity onPress={goToToday} style={styles.todayButton}>
               <Text style={styles.todayText}>Today</Text>
@@ -146,7 +241,7 @@ export default function DatePickerModal({
               {MONTHS[selectedMonth]} {selectedYear}
             </Text>
             <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
-              <Feather name="chevron-right" size={24} color={M3.onSurface} />
+              <Feather name="chevron-right" size={24} color={theme.colors.onSurface} />
             </TouchableOpacity>
           </View>
 
@@ -193,105 +288,3 @@ export default function DatePickerModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: M3.scrim,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modal: {
-    width: '90%',
-    maxWidth: 400,
-    backgroundColor: M3.surface,
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: M3.outline,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: M3.onSurface,
-    letterSpacing: -0.3,
-  },
-  closeButton: { padding: 8 },
-  navigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  navButton: { padding: 8 },
-  todayButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    backgroundColor: M3.primaryContainer,
-    borderRadius: 14,
-  },
-  todayText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: M3.primary,
-  },
-  monthYear: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: M3.onSurface,
-  },
-  daysOfWeekRow: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  dayOfWeekCell: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  dayOfWeekText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: M3.onSurfaceVariant,
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  dayCell: {
-    width: '14.28%',
-    aspectRatio: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-  },
-  todayCell: {
-    backgroundColor: M3.primaryContainer,
-    borderWidth: 2,
-    borderColor: M3.primary,
-  },
-  selectedCell: {
-    backgroundColor: M3.primary,
-  },
-  dayNumber: {
-    fontSize: 14,
-    color: M3.onSurface,
-    fontWeight: '600',
-  },
-  selectedText: {
-    color: M3.onPrimary,
-    fontWeight: 'bold',
-  },
-});
-

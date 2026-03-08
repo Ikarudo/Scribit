@@ -1,104 +1,26 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Pressable } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { useTheme } from 'react-native-paper';
 import { Calendar, DateData } from 'react-native-calendars';
 import { useCalendar, CalendarEvent, EventOccurrence } from '@/components/CalendarProvider';
 import { parseLocalDate } from '@/constants/dateUtils';
 import EventCreationModal from '@/components/EventCreationModal';
 import { useReminders } from '@/components/RemindersProvider';
 import { useAuth } from '@/components/useAuth';
+import { useIsDark } from '@/components/ThemeContext';
+import { cardTintsLight, cardTintsDark } from '@/theme';
+import { PressableScale } from '@/components/ui/PressableScale';
+import type { AppTheme } from '@/theme';
 
 const LIST_PAD = 20;
-const springConfig = { damping: 14, stiffness: 380 };
-
-// Authentic Material 3 Light Theme Color Scheme
-const M3 = {
-  // Surface colors
-  background: '#FEF7FF',
-  surface: '#FEF7FF',
-  surfaceContainerLowest: '#FFFFFF',
-  surfaceContainerLow: '#F8F2FA',
-  surfaceContainer: '#F2ECF4',
-  surfaceContainerHigh: '#ECE6EE',
-  surfaceContainerHighest: '#E7E0E8',
-  
-  // Primary colors
-  primary: '#6750A4',
-  onPrimary: '#FFFFFF',
-  primaryContainer: '#E9DDFF',
-  onPrimaryContainer: '#22005D',
-  
-  // Secondary colors
-  secondary: '#625B71',
-  onSecondary: '#FFFFFF',
-  secondaryContainer: '#E8DEF8',
-  onSecondaryContainer: '#1E192B',
-  
-  // Tertiary colors
-  tertiary: '#7E5260',
-  onTertiary: '#FFFFFF',
-  tertiaryContainer: '#FFD9E3',
-  onTertiaryContainer: '#31101D',
-  
-  // Text colors
-  onSurface: '#1D1B20',
-  onSurfaceVariant: '#49454E',
-  
-  // Outline colors
-  outline: '#7A757F',
-  outlineVariant: '#CAC4CF',
-  
-  // Error colors
-  error: '#BA1A1A',
-  onError: '#FFFFFF',
-  errorContainer: '#FFDAD6',
-  onErrorContainer: '#410002',
-  
-  // Other
-  scrim: 'rgba(0, 0, 0, 0.4)',
-  shadow: '#000000',
-  
-  // Card tints
-  cardTints: [
-    '#F6EDFF',  // primary tint
-    '#E8DEF8',  // secondary tint  
-    '#FFD9E3',  // tertiary tint
-    '#E8F5E9',  // green tint
-    '#FFF8E1',  // amber tint
-    '#E3F2FD',  // blue tint
-  ],
-};
-
-function PressableScale({
-  children,
-  onPress,
-  style,
-  contentStyle,
-}: {
-  children: React.ReactNode;
-  onPress?: () => void;
-  style?: object;
-  contentStyle?: object;
-}) {
-  const scale = useSharedValue(1);
-  const s = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-  return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => { scale.value = withSpring(0.96, springConfig); }}
-      onPressOut={() => { scale.value = withSpring(1, springConfig); }}
-      style={style}
-    >
-      <Animated.View style={[s, contentStyle]}>{children}</Animated.View>
-    </Pressable>
-  );
-}
 
 export default function CalendarScreen() {
+  const theme = useTheme<AppTheme>();
+  const styles = useMemo(() => createCalendarStyles(theme), [theme]);
+  const isDark = useIsDark();
+  const cardTints = isDark ? cardTintsDark : cardTintsLight;
   const insets = useSafeAreaInsets();
   const { loading: authLoading } = useAuth();
   const { events, loading, createEvent, deleteEvent, getEventsForMonth } = useCalendar();
@@ -115,6 +37,31 @@ export default function CalendarScreen() {
 
   // Get events for current month (returns occurrences)
   const monthEventOccurrences = getEventsForMonth(currentYear, currentMonth) || [];
+
+  const calendarTheme = useMemo(
+    () =>
+      ({
+        backgroundColor: isDark ? theme.colors.surface : '#FFFFFF',
+        calendarBackground: isDark ? theme.colors.surface : '#FFFFFF',
+        textSectionTitleColor: theme.colors.onSurfaceVariant,
+        selectedDayBackgroundColor: theme.colors.primaryContainer,
+        selectedDayTextColor: theme.colors.onPrimaryContainer,
+        todayTextColor: theme.colors.primary,
+        dayTextColor: theme.colors.onSurface,
+        textDisabledColor: theme.colors.outlineVariant,
+        dotColor: theme.colors.primary,
+        selectedDotColor: theme.colors.primary,
+        arrowColor: theme.colors.primary,
+        monthTextColor: theme.colors.onSurface,
+        textDayFontWeight: '400',
+        textMonthFontWeight: '400',
+        textDayHeaderFontWeight: '500',
+        textDayFontSize: 14,
+        textMonthFontSize: 22,
+        textDayHeaderFontSize: 12,
+      } as const),
+    [theme, isDark]
+  );
 
   // Convert events to react-native-calendars format
   const markedDates = useMemo(() => {
@@ -143,13 +90,13 @@ export default function CalendarScreen() {
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     if (marked[todayStr]) {
       marked[todayStr].selected = true;
-      marked[todayStr].selectedColor = M3.primaryContainer;
+      marked[todayStr].selectedColor = theme.colors.primaryContainer;
     } else {
       marked[todayStr] = {
         marked: true,
         dots: [],
         selected: true,
-        selectedColor: M3.primaryContainer,
+        selectedColor: theme.colors.primaryContainer,
       };
     }
 
@@ -322,9 +269,9 @@ export default function CalendarScreen() {
 
   if (authLoading || loading) {
     return (
-      <View style={[styles.container, { backgroundColor: M3.background }]}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.loadingRoot}>
-          <Text style={[styles.loadingText, { color: M3.onSurfaceVariant }]}>Loading calendar…</Text>
+          <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>Loading calendar…</Text>
         </View>
       </View>
     );
@@ -333,7 +280,7 @@ export default function CalendarScreen() {
   const scrollBottom = Math.max(insets.bottom, 24) + 90;
 
   return (
-    <View style={[styles.container, { backgroundColor: M3.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingTop: 24 + insets.top, paddingBottom: scrollBottom }]}
@@ -341,50 +288,32 @@ export default function CalendarScreen() {
         <View style={styles.headerRow}>
           <Text style={styles.headline}>Calendar</Text>
           <PressableScale onPress={handleCreateEvent} style={styles.addWrap} contentStyle={styles.addBtn}>
-            <Feather name="plus" size={22} color={M3.onPrimary} />
+            <Feather name="plus" size={22} color={theme.colors.onPrimary} />
             <Text style={styles.addText}>New event</Text>
           </PressableScale>
         </View>
 
         <View style={styles.navRow}>
           <TouchableOpacity onPress={goToPreviousMonth} style={styles.navBtn} hitSlop={12}>
-            <Feather name="chevron-left" size={24} color={M3.onSurface} />
+            <Feather name="chevron-left" size={24} color={theme.colors.onSurface} />
           </TouchableOpacity>
           <PressableScale onPress={goToToday} style={styles.todayWrap} contentStyle={styles.todayBtn}>
             <Text style={styles.todayText}>Today</Text>
           </PressableScale>
           <TouchableOpacity onPress={goToNextMonth} style={styles.navBtn} hitSlop={12}>
-            <Feather name="chevron-right" size={24} color={M3.onSurface} />
+            <Feather name="chevron-right" size={24} color={theme.colors.onSurface} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.calendarContainer}>
           <Calendar
+            key={isDark ? 'calendar-dark' : 'calendar-light'}
             current={currentDateString}
             onDayPress={handleDatePress}
             onMonthChange={handleMonthChange}
             markedDates={markedDates}
             markingType="multi-dot"
-            theme={{
-              backgroundColor: M3.surface,
-              calendarBackground: M3.surface,
-              textSectionTitleColor: M3.onSurfaceVariant,
-              selectedDayBackgroundColor: M3.primaryContainer,
-              selectedDayTextColor: M3.onPrimaryContainer,
-              todayTextColor: M3.primary,
-              dayTextColor: M3.onSurface,
-              textDisabledColor: M3.outlineVariant,
-              dotColor: M3.primary,
-              selectedDotColor: M3.primary,
-              arrowColor: M3.primary,
-              monthTextColor: M3.onSurface,
-              textDayFontWeight: '400',
-              textMonthFontWeight: '400',
-              textDayHeaderFontWeight: '500',
-              textDayFontSize: 14,
-              textMonthFontSize: 22,
-              textDayHeaderFontSize: 12,
-            }}
+            theme={calendarTheme}
             style={styles.calendar}
             enableSwipeMonths={true}
             hideExtraDays={true}
@@ -419,7 +348,7 @@ export default function CalendarScreen() {
               }
               const isCollapsed = collapsedGroups.has(eventType);
               const eventTypeString = String(eventType);
-              const tint = M3.cardTints[idx % M3.cardTints.length];
+              const tint = cardTints[idx % cardTints.length];
               return (
                 <View key={eventTypeString} style={styles.eventGroup}>
                   <TouchableOpacity
@@ -429,43 +358,56 @@ export default function CalendarScreen() {
                     <Text style={styles.groupTitle}>{String(eventTypeString)}</Text>
                     <View style={styles.groupHeaderRight}>
                       <Text style={styles.groupCount}>{String(occurrences?.length ?? 0)}</Text>
-                      <Feather name={isCollapsed ? 'chevron-down' : 'chevron-up'} size={18} color={M3.onSurfaceVariant} />
+                      <Feather name={isCollapsed ? 'chevron-down' : 'chevron-up'} size={18} color={theme.colors.onSurfaceVariant} />
                     </View>
                   </TouchableOpacity>
                   {!isCollapsed ? (
                     <View style={styles.groupContent}>
                       {occurrences.map((occurrence) => {
                         if (!occurrence || !occurrence.event || !occurrence.occurrenceKey) return null;
+                        const eventDate = parseLocalDate(occurrence.occurrenceDate);
+                        const today = new Date();
+                        eventDate.setHours(0, 0, 0, 0);
+                        today.setHours(0, 0, 0, 0);
+                        const isPast = eventDate < today;
                         return (
                           <PressableScale
                             key={occurrence.occurrenceKey}
                             onPress={() => {}}
                             style={styles.eventWrap}
-                            contentStyle={styles.eventItem}
+                            contentStyle={[styles.eventItem, isPast && styles.eventItemPast]}
                           >
                             <TouchableOpacity
                               style={styles.eventTouch}
                               onLongPress={() => handleDeleteEvent(occurrence.event.id)}
                               activeOpacity={1}
                             >
-                              <View style={[styles.eventColorBar, { backgroundColor: occurrence.event.color || M3.primary }]} />
+                              <View style={[styles.eventColorBar, { backgroundColor: occurrence.event.color || theme.colors.primary }]} />
                               <View style={styles.eventContent}>
-                                <Text style={styles.eventTitle} numberOfLines={1}>{String(occurrence.event.title || 'Untitled Event')}</Text>
+                                <Text style={[styles.eventTitle, isPast && styles.eventTitlePast]} numberOfLines={1}>
+                                  {String(occurrence.event.title || 'Untitled Event')}
+                                </Text>
                                 <View style={styles.eventDetails}>
                                   {viewMode === 'month' ? (
                                     <View style={styles.eventDetailRow}>
-                                      <Feather name="calendar" size={12} color={M3.onSurfaceVariant} />
-                                      <Text style={styles.eventDetailText}>{formatDate(occurrence.occurrenceDate)}</Text>
+                                      <Feather name="calendar" size={12} color={theme.colors.onSurfaceVariant} />
+                                      <Text style={[styles.eventDetailText, isPast && styles.eventDetailTextPast]}>
+                                        {formatDate(occurrence.occurrenceDate)}
+                                      </Text>
                                     </View>
                                   ) : null}
                                   <View style={styles.eventDetailRow}>
-                                    <Feather name="clock" size={12} color={M3.onSurfaceVariant} />
-                                    <Text style={styles.eventDetailText}>{formatTime(occurrence.event.time)}</Text>
+                                    <Feather name="clock" size={12} color={theme.colors.onSurfaceVariant} />
+                                    <Text style={[styles.eventDetailText, isPast && styles.eventDetailTextPast]}>
+                                      {formatTime(occurrence.event.time)}
+                                    </Text>
                                   </View>
                                   {occurrence.event.repeat && occurrence.event.repeat !== 'None' ? (
                                     <View style={styles.eventDetailRow}>
-                                      <Feather name="repeat" size={12} color={M3.onSurfaceVariant} />
-                                      <Text style={styles.eventDetailText}>{String(occurrence.event.repeat)}</Text>
+                                      <Feather name="repeat" size={12} color={theme.colors.onSurfaceVariant} />
+                                      <Text style={[styles.eventDetailText, isPast && styles.eventDetailTextPast]}>
+                                        {String(occurrence.event.repeat)}
+                                      </Text>
                                     </View>
                                   ) : null}
                                 </View>
@@ -483,7 +425,7 @@ export default function CalendarScreen() {
         ) : (
           <View style={styles.emptyRoot}>
             <View style={styles.emptyIconWrap}>
-              <Feather name="calendar" size={44} color={M3.outline} />
+              <Feather name="calendar" size={44} color={theme.colors.outline} />
             </View>
             <Text style={styles.emptyTitle}>
               {viewMode === 'day' ? 'No events today' : 'No events this month'}
@@ -508,7 +450,9 @@ export default function CalendarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createCalendarStyles(theme: AppTheme) {
+  const c = theme.colors;
+  return StyleSheet.create({
   container: { flex: 1 },
   loadingRoot: {
     flex: 1,
@@ -524,7 +468,7 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 32,
     fontWeight: '400',
-    color: M3.onSurface,
+    color: c.onSurface,
     letterSpacing: 0,
   },
   headerRow: {
@@ -537,12 +481,12 @@ const styles = StyleSheet.create({
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: M3.primary,
+    backgroundColor: c.primary,
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 10,
     gap: 6,
-    shadowColor: M3.shadow,
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
@@ -551,7 +495,7 @@ const styles = StyleSheet.create({
   addText: { 
     fontSize: 14, 
     fontWeight: '500', 
-    color: M3.onPrimary,
+    color: c.onPrimary,
     letterSpacing: 0.1,
   },
   navRow: {
@@ -569,21 +513,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
-    backgroundColor: M3.secondaryContainer,
+    backgroundColor: c.secondaryContainer,
     alignItems: 'center',
   },
   todayText: { 
     fontSize: 14, 
     fontWeight: '500', 
-    color: M3.onSecondaryContainer,
+    color: c.onSecondaryContainer,
     letterSpacing: 0.1,
   },
   calendarContainer: { marginBottom: 20 },
   calendar: {
     borderRadius: 16,
     padding: 8,
-    backgroundColor: M3.surfaceContainerLow,
-    shadowColor: M3.shadow,
+    backgroundColor: c.surfaceVariant,
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -599,32 +543,32 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: M3.surfaceContainerHigh,
+    backgroundColor: c.surfaceVariant,
     alignItems: 'center',
-    shadowColor: M3.shadow,
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
   toggleBtnActive: {
-    backgroundColor: M3.secondaryContainer,
+    backgroundColor: c.secondaryContainer,
   },
   toggleText: {
     fontSize: 14,
     fontWeight: '500',
-    color: M3.onSurfaceVariant,
+    color: c.onSurfaceVariant,
     letterSpacing: 0.1,
   },
   toggleTextActive: { 
-    color: M3.onSecondaryContainer,
+    color: c.onSecondaryContainer,
   },
   eventsSection: { marginBottom: 24 },
   eventGroup: {
     marginBottom: 16,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: M3.shadow,
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -639,31 +583,34 @@ const styles = StyleSheet.create({
   groupTitle: { 
     fontSize: 16, 
     fontWeight: '500', 
-    color: M3.onSurface,
+    color: c.onSurface,
     letterSpacing: 0.15,
   },
   groupHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   groupCount: { 
     fontSize: 14, 
     fontWeight: '500', 
-    color: M3.onSurfaceVariant,
+    color: c.onSurfaceVariant,
     letterSpacing: 0.1,
   },
   groupContent: { 
     padding: 12,
-    backgroundColor: M3.surfaceContainerLow,
+    backgroundColor: c.surfaceVariant,
   },
   eventWrap: { marginBottom: 10 },
   eventItem: {
     flexDirection: 'row',
-    backgroundColor: M3.surface,
+    backgroundColor: c.surface,
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: M3.shadow,
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+  },
+  eventItemPast: {
+    opacity: 0.55,
   },
   eventTouch: { flex: 1, flexDirection: 'row' },
   eventColorBar: { width: 4 },
@@ -671,17 +618,23 @@ const styles = StyleSheet.create({
   eventTitle: { 
     fontSize: 15, 
     fontWeight: '500', 
-    color: M3.onSurface, 
+    color: c.onSurface, 
     marginBottom: 6,
     letterSpacing: 0.1,
+  },
+  eventTitlePast: {
+    textDecorationLine: 'line-through',
   },
   eventDetails: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   eventDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   eventDetailText: { 
     fontSize: 12, 
-    color: M3.onSurfaceVariant, 
+    color: c.onSurfaceVariant, 
     fontWeight: '400',
     letterSpacing: 0.4,
+  },
+  eventDetailTextPast: {
+    textDecorationLine: 'line-through',
   },
   emptyRoot: {
     alignItems: 'center',
@@ -692,7 +645,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: M3.surfaceContainerHighest,
+    backgroundColor: c.surfaceVariant,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -700,14 +653,15 @@ const styles = StyleSheet.create({
   emptyTitle: { 
     fontSize: 18, 
     fontWeight: '500', 
-    color: M3.onSurface, 
+    color: c.onSurface, 
     marginBottom: 6,
     letterSpacing: 0,
   },
   emptySub: { 
     fontSize: 14, 
-    color: M3.onSurfaceVariant, 
+    color: c.onSurfaceVariant, 
     fontWeight: '400',
     letterSpacing: 0.25,
   },
-});
+  });
+}

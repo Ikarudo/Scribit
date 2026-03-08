@@ -2,14 +2,9 @@ import React from 'react';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
+import { useTheme } from 'react-native-paper';
 import { CollapsibleTabBar } from '@/components/CollapsibleTabBar';
-
-const TAB_BAR = {
-  background: '#1f1f22',
-  active: '#7C5DE8',
-  inactive: '#ffffff',
-  outline: '#2D2A38',
-};
+import type { AppTheme } from '@/theme';
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome5>['name'];
@@ -18,93 +13,76 @@ function TabBarIcon(props: {
   return <FontAwesome5 size={24} style={{ marginBottom: -2 }} {...props} />;
 }
 
+const TAB_OPTIONS: Record<string, { title: string; icon: React.ComponentProps<typeof FontAwesome5>['name'] }> = {
+  home: { title: 'Home', icon: 'home' },
+  notes: { title: 'Notes', icon: 'sticky-note' },
+  calendar: { title: 'Calendar', icon: 'calendar' },
+  reminders: { title: 'Reminders', icon: 'bell' },
+  tasks: { title: 'Tasks', icon: 'check-square' },
+  profile: { title: 'Profile', icon: 'user' },
+};
+
 export default function TabLayout() {
+  const theme = useTheme<AppTheme>();
+  const tabBarBg = theme.colors.surfaceVariant;
+  const tabBarActive = theme.colors.primary;
+  const tabBarInactive = theme.colors.onSurfaceVariant;
+
   return (
     <Tabs
       tabBar={(props) => <CollapsibleTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: TAB_BAR.active,
-        tabBarInactiveTintColor: TAB_BAR.inactive,
-        tabBarStyle: {
-          backgroundColor: TAB_BAR.background,
-          borderTopWidth: 0,
-          borderTopLeftRadius: 26,
-          borderTopRightRadius: 26,
-          borderBottomRightRadius: 26,
-          borderBottomLeftRadius: 26,
-          overflow: 'hidden',
-          elevation: 8,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.2,
-          shadowRadius: 12,
-          height: 70,
-          marginHorizontal: 4,
-          marginBottom: 8,
-          position: 'absolute',
-        },
-        tabBarBackground: () => (
-          <View style={{
+      screenOptions={({ route }) => {
+        const opts = TAB_OPTIONS[route.name] ?? { title: route.name, icon: 'circle' as const };
+        return {
+          headerShown: false,
+          title: opts.title,
+          tabBarIcon: ({ color }) => <TabBarIcon name={opts.icon} color={color} />,
+          tabBarActiveTintColor: tabBarActive,
+          tabBarInactiveTintColor: tabBarInactive,
+          tabBarStyle: {
+            backgroundColor: tabBarBg,
+            borderTopWidth: 0,
+            borderTopLeftRadius: 26,
+            borderTopRightRadius: 26,
+            borderBottomRightRadius: 26,
+            borderBottomLeftRadius: 26,
+            overflow: 'hidden',
+            elevation: 8,
+            shadowColor: theme.colors.shadow,
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.2,
+            shadowRadius: 12,
+            height: 70,
+            marginHorizontal: 4,
+            marginBottom: 8,
             position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 92,
-            backgroundColor: '#363539',
-          }} />
-        ),
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
-        tabBarItemStyle: {
-          paddingTop: 6,
-        },
+          },
+          tabBarBackground: () => (
+            <View style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 92,
+              backgroundColor: tabBarBg,
+            }} />
+          ),
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: '600',
+          },
+          tabBarItemStyle: {
+            paddingTop: 6,
+          },
+        };
       }}
     >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="notes"
-        options={{
-          title: 'Notes',
-          tabBarIcon: ({ color }) => <TabBarIcon name="sticky-note" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="calendar"
-        options={{
-          title: 'Calendar',
-          tabBarIcon: ({ color }) => <TabBarIcon name="calendar" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="reminders"
-        options={{
-          title: 'Reminders',
-          tabBarIcon: ({ color }) => <TabBarIcon name="bell" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="tasks"
-        options={{
-          title: 'Tasks',
-          tabBarIcon: ({ color }) => <TabBarIcon name="check-square" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
-        }}
-      />
+      <Tabs.Screen name="home" />
+      <Tabs.Screen name="notes" />
+      <Tabs.Screen name="calendar" />
+      <Tabs.Screen name="reminders" />
+      <Tabs.Screen name="tasks" />
+      <Tabs.Screen name="profile" />
     </Tabs>
   );
 }

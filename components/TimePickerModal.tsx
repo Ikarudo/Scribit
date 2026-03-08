@@ -1,19 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { useTheme } from 'react-native-paper';
 import { Feather } from '@expo/vector-icons';
-
-const M3 = {
-  surface: '#FFFFFF',
-  primary: '#7C5DE8',
-  primaryContainer: '#E8E0FC',
-  onPrimary: '#FFFFFF',
-  onSurface: '#1C1B22',
-  onSurfaceVariant: '#5C5868',
-  outline: '#D4CFE0',
-  outlineVariant: '#E6E1ED',
-  surfaceContainerHigh: '#F0EBF8',
-  scrim: 'rgba(28, 27, 34, 0.4)',
-};
+import type { AppTheme } from '@/theme';
 
 type TimePickerModalProps = {
   visible: boolean;
@@ -22,12 +11,167 @@ type TimePickerModalProps = {
   initialTime?: string;
 };
 
+function createStyles(theme: AppTheme) {
+  const c = theme.colors;
+  return StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: c.scrim,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modal: {
+      width: '90%',
+      maxWidth: 380,
+      backgroundColor: c.surface,
+      borderRadius: 24,
+      padding: 24,
+      borderWidth: 1,
+      borderColor: c.outline,
+      shadowColor: '#000',
+      shadowOpacity: 0.15,
+      shadowOffset: { width: 0, height: 4 },
+      shadowRadius: 16,
+      elevation: 8,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: c.onSurface,
+      letterSpacing: -0.3,
+    },
+    closeButton: { padding: 8 },
+    timeDisplay: {
+      alignItems: 'center',
+      marginBottom: 24,
+      paddingVertical: 20,
+      backgroundColor: c.primaryContainer,
+      borderRadius: 16,
+    },
+    timeText: {
+      fontSize: 36,
+      fontWeight: '800',
+      color: c.primary,
+      letterSpacing: -0.5,
+    },
+    pickersRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginBottom: 24,
+      gap: 24,
+    },
+    pickerBlock: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    pickerLabel: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.onSurfaceVariant,
+      letterSpacing: 1,
+      marginBottom: 12,
+    },
+    pickerControls: {
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 8,
+    },
+    pickerBtn: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: c.surfaceVariant,
+      borderWidth: 1.5,
+      borderColor: c.outline,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pickerValue: {
+      fontSize: 28,
+      fontWeight: '800',
+      color: c.primary,
+    },
+    quickTimeContainer: {
+      marginBottom: 24,
+    },
+    quickTimeLabel: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.onSurfaceVariant,
+      letterSpacing: 1,
+      marginBottom: 12,
+    },
+    quickTimeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+    },
+    quickTimeButton: {
+      flex: 1,
+      minWidth: '45%',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      backgroundColor: c.surfaceVariant,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: c.outline,
+      alignItems: 'center',
+    },
+    quickTimeText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: c.onSurface,
+    },
+    actions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      marginTop: 8,
+      gap: 12,
+    },
+    cancelButton: {
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+    },
+    cancelText: {
+      color: c.onSurfaceVariant,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    saveButton: {
+      backgroundColor: c.primary,
+      paddingVertical: 14,
+      paddingHorizontal: 28,
+      borderRadius: 16,
+      minWidth: 90,
+      alignItems: 'center',
+      shadowColor: c.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    saveText: {
+      color: c.onPrimary,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+  });
+}
+
 export default function TimePickerModal({
   visible,
   onClose,
   onSelectTime,
   initialTime,
 }: TimePickerModalProps) {
+  const theme = useTheme<AppTheme>();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   // Parse time string (HH:MM) to hours and minutes
   const parseTime = (timeStr: string): { hours: number; minutes: number } => {
     if (!timeStr || !timeStr.includes(':')) {
@@ -80,7 +224,7 @@ export default function TimePickerModal({
           <View style={styles.header}>
             <Text style={styles.title}>Select time</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Feather name="x" size={24} color={M3.onSurface} />
+              <Feather name="x" size={24} color={theme.colors.onSurface} />
             </TouchableOpacity>
           </View>
 
@@ -98,14 +242,14 @@ export default function TimePickerModal({
                   style={styles.pickerBtn}
                   onPress={() => setHours((prev) => (prev === 0 ? 23 : prev - 1))}
                 >
-                  <Feather name="chevron-up" size={24} color={M3.primary} />
+                  <Feather name="chevron-up" size={24} color={theme.colors.primary} />
                 </TouchableOpacity>
                 <Text style={styles.pickerValue}>{String(hours).padStart(2, '0')}</Text>
                 <TouchableOpacity
                   style={styles.pickerBtn}
                   onPress={() => setHours((prev) => (prev === 23 ? 0 : prev + 1))}
                 >
-                  <Feather name="chevron-down" size={24} color={M3.primary} />
+                  <Feather name="chevron-down" size={24} color={theme.colors.primary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -116,14 +260,14 @@ export default function TimePickerModal({
                   style={styles.pickerBtn}
                   onPress={() => setMinutes((prev) => (prev === 59 ? 0 : prev + 1))}
                 >
-                  <Feather name="chevron-up" size={24} color={M3.primary} />
+                  <Feather name="chevron-up" size={24} color={theme.colors.primary} />
                 </TouchableOpacity>
                 <Text style={styles.pickerValue}>{String(minutes).padStart(2, '0')}</Text>
                 <TouchableOpacity
                   style={styles.pickerBtn}
                   onPress={() => setMinutes((prev) => (prev === 0 ? 59 : prev - 1))}
                 >
-                  <Feather name="chevron-down" size={24} color={M3.primary} />
+                  <Feather name="chevron-down" size={24} color={theme.colors.primary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -159,154 +303,3 @@ export default function TimePickerModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: M3.scrim,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modal: {
-    width: '90%',
-    maxWidth: 380,
-    backgroundColor: M3.surface,
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: M3.outline,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: M3.onSurface,
-    letterSpacing: -0.3,
-  },
-  closeButton: { padding: 8 },
-  timeDisplay: {
-    alignItems: 'center',
-    marginBottom: 24,
-    paddingVertical: 20,
-    backgroundColor: M3.primaryContainer,
-    borderRadius: 16,
-  },
-  timeText: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: M3.primary,
-    letterSpacing: -0.5,
-  },
-  pickersRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 24,
-    gap: 24,
-  },
-  pickerBlock: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  pickerLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: M3.onSurfaceVariant,
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  pickerControls: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 8,
-  },
-  pickerBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: M3.surfaceContainerHigh,
-    borderWidth: 1.5,
-    borderColor: M3.outline,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickerValue: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: M3.primary,
-  },
-  quickTimeContainer: {
-    marginBottom: 24,
-  },
-  quickTimeLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: M3.onSurfaceVariant,
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  quickTimeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  quickTimeButton: {
-    flex: 1,
-    minWidth: '45%',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: M3.surfaceContainerHigh,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: M3.outline,
-    alignItems: 'center',
-  },
-  quickTimeText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: M3.onSurface,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 8,
-    gap: 12,
-  },
-  cancelButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-  },
-  cancelText: {
-    color: M3.onSurfaceVariant,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  saveButton: {
-    backgroundColor: M3.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 16,
-    minWidth: 90,
-    alignItems: 'center',
-    shadowColor: M3.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  saveText: {
-    color: M3.onPrimary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
-

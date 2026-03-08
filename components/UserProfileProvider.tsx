@@ -8,12 +8,13 @@ export type UserProfile = {
   email: string;
   createdAt: number;
   updatedAt: number;
+  avatarUri?: string;
 };
 
 interface UserProfileContextType {
   profile: UserProfile | null;
   loading: boolean;
-  updateProfile: (updates: Partial<Pick<UserProfile, 'username'>>) => Promise<void>;
+  updateProfile: (updates: Partial<Pick<UserProfile, 'username' | 'avatarUri'>>) => Promise<void>;
   createProfile: (user: User, username: string) => Promise<void>;
 }
 
@@ -55,6 +56,7 @@ export const UserProfileProvider = ({ children, user: currentUser }: { children:
               email: data.email || currentUser.email || '',
               createdAt: data.createdAt || Date.now(),
               updatedAt: data.updatedAt || Date.now(),
+              avatarUri: data.avatarUri || undefined,
             });
           }
         } else {
@@ -65,12 +67,14 @@ export const UserProfileProvider = ({ children, user: currentUser }: { children:
             email: currentUser.email || '',
             createdAt: Date.now(),
             updatedAt: Date.now(),
+            avatarUri: undefined,
           };
           await AsyncStorage.setItem(profileKey, JSON.stringify({
             username: defaultProfile.username,
             email: defaultProfile.email,
             createdAt: defaultProfile.createdAt,
             updatedAt: defaultProfile.updatedAt,
+            avatarUri: defaultProfile.avatarUri,
           }));
           if (mounted) {
             setProfile(defaultProfile);
@@ -95,7 +99,7 @@ export const UserProfileProvider = ({ children, user: currentUser }: { children:
     };
   }, [currentUser]);
 
-  const updateProfile = async (updates: Partial<Pick<UserProfile, 'username'>>) => {
+  const updateProfile = async (updates: Partial<Pick<UserProfile, 'username' | 'avatarUri'>>) => {
     if (!currentUser || !profile) return;
 
     try {
@@ -112,6 +116,7 @@ export const UserProfileProvider = ({ children, user: currentUser }: { children:
         email: updatedProfile.email,
         createdAt: updatedProfile.createdAt,
         updatedAt: updatedProfile.updatedAt,
+        avatarUri: updatedProfile.avatarUri,
       }));
 
       setProfile(updatedProfile);
@@ -129,6 +134,7 @@ export const UserProfileProvider = ({ children, user: currentUser }: { children:
         email: user.email || '',
         createdAt: Date.now(),
         updatedAt: Date.now(),
+        avatarUri: undefined,
       };
       
       // Save to AsyncStorage

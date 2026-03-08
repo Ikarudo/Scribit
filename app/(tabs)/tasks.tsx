@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,113 +10,53 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from 'react-native-reanimated';
+import { useTheme } from 'react-native-paper';
 import { useTasks, Task, TaskPriority } from '@/components/TasksProvider';
 import { parseLocalDate } from '@/constants/dateUtils';
 import { useCalendar } from '@/components/CalendarProvider';
 import { useReminders } from '@/components/RemindersProvider';
 import TaskCreationModal from '@/components/TaskCreationModal';
 import { useAuth } from '@/components/useAuth';
+import { PressableScale } from '@/components/ui/PressableScale';
+import type { AppTheme } from '@/theme';
 
 const LIST_PAD = 20;
-const springConfig = { damping: 14, stiffness: 380 };
 
 const PRIORITY_ORDER: TaskPriority[] = ['High', 'Medium', 'Low'];
-const PRIORITY_COLORS = {
-  High: '#C62828',      // M3 red
-  Medium: '#F57C00',    // M3 orange
-  Low: '#2E7D32',       // M3 green
-};
-const PRIORITY_TINT = {
-  High: '#FFCDD2',      // M3 red tint
-  Medium: '#FFE0B2',    // M3 orange tint
-  Low: '#C8E6C9',       // M3 green tint
+
+// Dark-mode priority accents (keep existing strong colors)
+const PRIORITY_COLORS_DARK: Record<TaskPriority, string> = {
+  High: '#C62828',
+  Medium: '#F9DA2F',
+  Low: '#347F37',
 };
 
-// Authentic Material 3 Light Theme Color Scheme
-const M3 = {
-  // Surface colors
-  background: '#FEF7FF',
-  surface: '#FEF7FF',
-  surfaceContainerLowest: '#FFFFFF',
-  surfaceContainerLow: '#F8F2FA',
-  surfaceContainer: '#F2ECF4',
-  surfaceContainerHigh: '#ECE6EE',
-  surfaceContainerHighest: '#E7E0E8',
-  
-  // Primary colors
-  primary: '#6750A4',
-  onPrimary: '#FFFFFF',
-  primaryContainer: '#E9DDFF',
-  onPrimaryContainer: '#22005D',
-  
-  // Secondary colors
-  secondary: '#625B71',
-  onSecondary: '#FFFFFF',
-  secondaryContainer: '#E8DEF8',
-  onSecondaryContainer: '#1E192B',
-  
-  // Tertiary colors
-  tertiary: '#7E5260',
-  onTertiary: '#FFFFFF',
-  tertiaryContainer: '#FFD9E3',
-  onTertiaryContainer: '#31101D',
-  
-  // Text colors
-  onSurface: '#1D1B20',
-  onSurfaceVariant: '#49454E',
-  
-  // Outline colors
-  outline: '#7A757F',
-  outlineVariant: '#CAC4CF',
-  
-  // Error colors
-  error: '#BA1A1A',
-  onError: '#FFFFFF',
-  errorContainer: '#FFDAD6',
-  onErrorContainer: '#410002',
-  
-  // Other
-  scrim: 'rgba(0, 0, 0, 0.4)',
-  shadow: '#000000',
+// Dark-mode card tints (existing)
+const PRIORITY_TINT_DARK: Record<TaskPriority, string> = {
+  High: '#b95d66',
+  Medium: '#DCC751',
+  Low: '#52A855',
 };
 
-function PressableScale({
-  children,
-  onPress,
-  style,
-  contentStyle,
-}: {
-  children: React.ReactNode;
-  onPress?: () => void;
-  style?: object;
-  contentStyle?: object;
-}) {
-  const scale = useSharedValue(1);
-  const s = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-  return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => {
-        scale.value = withSpring(0.96, springConfig);
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, springConfig);
-      }}
-      style={style}
-    >
-      <Animated.View style={[s, contentStyle]}>{children}</Animated.View>
-    </Pressable>
-  );
-}
+// Light-mode priority accents – softer pastels to match the UI
+const PRIORITY_COLORS_LIGHT: Record<TaskPriority, string> = {
+  High: '#e45757ce',   // soft red
+  Medium: '#FFB74D', // soft amber
+  Low: '#81C784',    // soft green
+};
+
+// Light-mode card tints – very light pastel backgrounds
+const PRIORITY_TINT_LIGHT: Record<TaskPriority, string> = {
+  High: '#fdd3d9',
+  Medium: '#ffefd6',
+  Low: '#daf2dc',
+};
 
 export default function TasksScreen() {
+  const theme = useTheme<AppTheme>();
+  const styles = useMemo(() => createTasksStyles(theme), [theme]);
+  const PRIORITY_COLORS = theme.dark ? PRIORITY_COLORS_DARK : PRIORITY_COLORS_LIGHT;
+  const PRIORITY_TINT = theme.dark ? PRIORITY_TINT_DARK : PRIORITY_TINT_LIGHT;
   const insets = useSafeAreaInsets();
   const { loading: authLoading } = useAuth();
   const { tasks, loading, createTask, updateTask, deleteTask, toggleTaskComplete } = useTasks();
@@ -326,9 +266,9 @@ export default function TasksScreen() {
 
   if (authLoading || loading) {
     return (
-      <View style={[styles.container, { backgroundColor: M3.background }]}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.loadingRoot}>
-          <Text style={[styles.loadingText, { color: M3.onSurfaceVariant }]}>
+          <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>
             Loading tasks…
           </Text>
         </View>
@@ -342,7 +282,7 @@ export default function TasksScreen() {
   const scrollTop = 24 + insets.top;
 
   return (
-    <View style={[styles.container, { backgroundColor: M3.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -353,7 +293,7 @@ export default function TasksScreen() {
         <Text style={styles.headline}>Get it done</Text>
         {totalTasks > 0 && (
           <View style={styles.statsChip}>
-            <Feather name="check-circle" size={16} color={M3.primary} />
+            <Feather name="check-circle" size={16} color={theme.colors.primary} />
             <Text style={styles.statsChipText}>
               {completedTasks} of {totalTasks} completed
             </Text>
@@ -367,7 +307,7 @@ export default function TasksScreen() {
             style={styles.addWrap}
             contentStyle={styles.addBtn}
           >
-            <Feather name="plus" size={20} color={M3.onPrimary} />
+            <Feather name="plus" size={20} color={theme.colors.onPrimary} />
             <Text style={styles.addText}>New task</Text>
           </PressableScale>
         </View>
@@ -404,7 +344,7 @@ export default function TasksScreen() {
                     hitSlop={8}
                   >
                     {task.completed && (
-                      <Feather name="check" size={14} color={M3.onPrimary} />
+                      <Feather name="check" size={14} color={theme.colors.onPrimary} />
                     )}
                   </TouchableOpacity>
                   <View style={styles.taskBody}>
@@ -424,7 +364,7 @@ export default function TasksScreen() {
                     ) : null}
                     {task.dueDate ? (
                       <View style={styles.taskMeta}>
-                        <Feather name="calendar" size={12} color={M3.onSurfaceVariant} />
+                        <Feather name="calendar" size={12} color={theme.colors.onSurfaceVariant} />
                         <Text
                           style={[styles.taskMetaText, task.completed && styles.taskMetaCompleted]}
                         >
@@ -435,7 +375,7 @@ export default function TasksScreen() {
                             <Feather
                               name="clock"
                               size={12}
-                              color={M3.onSurfaceVariant}
+                              color={theme.colors.onSurfaceVariant}
                               style={{ marginLeft: 12 }}
                             />
                             <Text
@@ -470,7 +410,7 @@ export default function TasksScreen() {
                       onPress={() => handleDeleteTask(task.id, true)}
                       hitSlop={8}
                     >
-                      <Feather name="trash-2" size={16} color={M3.error} />
+                      <Feather name="trash-2" size={16} color={theme.colors.error} />
                     </TouchableOpacity>
                   </View>
                 </PressableScale>
@@ -482,7 +422,7 @@ export default function TasksScreen() {
         {totalTasks === 0 && (
           <View style={styles.emptyRoot}>
             <View style={styles.emptyIconWrap}>
-              <Feather name="check-square" size={44} color={M3.outline} />
+              <Feather name="check-square" size={44} color={theme.colors.outline} />
             </View>
             <Text style={styles.emptyTitle}>No tasks yet</Text>
             <Text style={styles.emptySub}>Tap "New task" to add your first one</Text>
@@ -504,7 +444,10 @@ export default function TasksScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createTasksStyles(theme: AppTheme) {
+  const c = theme.colors;
+  const subtleOnSurface = theme.dark ? c.onSurface : c.onSurfaceVariant;
+  return StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -524,7 +467,7 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 32,
     fontWeight: '400',
-    color: M3.onSurface,
+    color: c.onSurface,
     letterSpacing: 0,
     marginBottom: 16,
   },
@@ -536,13 +479,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: M3.primaryContainer,
+    backgroundColor: c.primaryContainer,
     marginBottom: 24,
   },
   statsChipText: {
     fontSize: 14,
     fontWeight: '500',
-    color: M3.onPrimaryContainer,
+    color: c.onPrimaryContainer,
     letterSpacing: 0.1,
   },
   headerRow: {
@@ -554,7 +497,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: '400',
-    color: M3.onSurface,
+    color: c.onSurface,
     letterSpacing: 0,
   },
   addWrap: {
@@ -563,12 +506,12 @@ const styles = StyleSheet.create({
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: M3.primary,
+    backgroundColor: c.primary,
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 10,
     gap: 6,
-    shadowColor: M3.shadow,
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
@@ -577,7 +520,7 @@ const styles = StyleSheet.create({
   addText: {
     fontSize: 14,
     fontWeight: '500',
-    color: M3.onPrimary,
+    color: c.onPrimary,
     letterSpacing: 0.1,
   },
   priorityBlock: {
@@ -595,15 +538,15 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   priorityLabel: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '500',
-    color: M3.onSurface,
+    color: c.onSurface,
     letterSpacing: 0.15,
   },
   priorityCount: {
     fontSize: 14,
     fontWeight: '500',
-    color: M3.onSurfaceVariant,
+    color: subtleOnSurface,
     letterSpacing: 0.1,
   },
   taskWrap: {
@@ -616,7 +559,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     overflow: 'hidden',
-    shadowColor: M3.shadow,
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -630,15 +573,15 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: M3.primary,
-    backgroundColor: M3.surface,
+    borderColor: c.primary,
+    backgroundColor: c.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   checkboxChecked: {
-    backgroundColor: M3.primary,
-    borderColor: M3.primary,
+    backgroundColor: c.primary,
+    borderColor: c.primary,
   },
   taskBody: {
     flex: 1,
@@ -647,17 +590,17 @@ const styles = StyleSheet.create({
   taskName: {
     fontSize: 16,
     fontWeight: '500',
-    color: M3.onSurface,
+    color: c.onSurface,
     marginBottom: 2,
     letterSpacing: 0.15,
   },
   taskNameCompleted: {
     textDecorationLine: 'line-through',
-    color: M3.onSurfaceVariant,
+    color: subtleOnSurface,
   },
   taskDesc: {
     fontSize: 14,
-    color: M3.onSurfaceVariant,
+    color: subtleOnSurface,
     marginBottom: 4,
     letterSpacing: 0.25,
   },
@@ -671,7 +614,7 @@ const styles = StyleSheet.create({
   },
   taskMetaText: {
     fontSize: 12,
-    color: M3.onSurfaceVariant,
+    color: subtleOnSurface,
     marginLeft: 4,
     fontWeight: '400',
     letterSpacing: 0.4,
@@ -708,7 +651,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: M3.surfaceContainerHighest,
+    backgroundColor: c.surfaceVariant,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -716,14 +659,15 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '500',
-    color: M3.onSurface,
+    color: c.onSurface,
     marginBottom: 8,
     letterSpacing: 0,
   },
   emptySub: {
     fontSize: 14,
-    color: M3.onSurfaceVariant,
+    color: c.onSurfaceVariant,
     fontWeight: '400',
     letterSpacing: 0.25,
   },
-});
+  });
+}

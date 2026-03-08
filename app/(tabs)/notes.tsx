@@ -1,13 +1,17 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, TextInput, Alert, Pressable, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { useTheme } from 'react-native-paper';
 import { useNotes, Book } from '@/components/NotesProvider';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@/components/useAuth';
+import { useIsDark } from '@/components/ThemeContext';
+import { cardTintsLight, cardTintsDark } from '@/theme';
 import { BOOK_ICONS, getBookIconSource } from '@/components/BookIcons';
+import { PressableScale } from '@/components/ui/PressableScale';
+import type { AppTheme } from '@/theme';
 import TenTapNoteEditor, { type TenTapNoteEditorRef } from '@/components/TenTapNoteEditor';
 import { toEditorContent } from '@/components/notesContentUtils';
 import {
@@ -17,88 +21,14 @@ import {
   defaultTitleForTemplate,
 } from '@/components/noteTemplates';
 
-// Authentic Material 3 Light Theme Color Scheme
-const M3 = {
-  // Surface colors
-  background: '#FEF7FF',
-  surface: '#FEF7FF',
-  surfaceContainerLowest: '#FFFFFF',
-  surfaceContainerLow: '#F8F2FA',
-  surfaceContainer: '#F2ECF4',
-  surfaceContainerHigh: '#ECE6EE',
-  surfaceContainerHighest: '#E7E0E8',
-  
-  // Primary colors
-  primary: '#6750A4',
-  onPrimary: '#FFFFFF',
-  primaryContainer: '#E9DDFF',
-  onPrimaryContainer: '#22005D',
-  
-  // Secondary colors
-  secondary: '#625B71',
-  onSecondary: '#FFFFFF',
-  secondaryContainer: '#E8DEF8',
-  onSecondaryContainer: '#1E192B',
-  
-  // Tertiary colors
-  tertiary: '#7E5260',
-  onTertiary: '#FFFFFF',
-  tertiaryContainer: '#FFD9E3',
-  onTertiaryContainer: '#31101D',
-  
-  // Text colors
-  onSurface: '#1D1B20',
-  onSurfaceVariant: '#49454E',
-  
-  // Outline colors
-  outline: '#7A757F',
-  outlineVariant: '#CAC4CF',
-  
-  // Error colors
-  error: '#BA1A1A',
-  onError: '#FFFFFF',
-  errorContainer: '#FFDAD6',
-  onErrorContainer: '#410002',
-  
-  // Other
-  scrim: 'rgba(0, 0, 0, 0.4)',
-  shadow: '#000000',
-};
-
-const springConfig = { damping: 14, stiffness: 380 };
-
-function PressableScale({
-  children,
-  onPress,
-  style,
-  contentStyle,
-}: {
-  children: React.ReactNode;
-  onPress?: () => void;
-  style?: object;
-  contentStyle?: object;
-}) {
-  const scale = useSharedValue(1);
-  const s = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-  return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => {
-        scale.value = withSpring(0.96, springConfig);
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, springConfig);
-      }}
-      style={style}
-    >
-      <Animated.View style={[s, contentStyle]}>{children}</Animated.View>
-    </Pressable>
-  );
-}
+const STAR_COLOR = '#FFAB00';
 
 export default function NotesScreen() {
+  const theme = useTheme<AppTheme>();
+  const c = theme.colors;
+  const styles = useMemo(() => createNotesStyles(theme), [theme]);
+  const isDark = useIsDark();
+  const cardTints = isDark ? cardTintsDark : cardTintsLight;
   const { loading: authLoading } = useAuth();
   const {
     books,
@@ -396,9 +326,9 @@ export default function NotesScreen() {
   // UI
   if (authLoading || loading) {
     return (
-      <View style={[styles.container, { backgroundColor: M3.background }]}>
+      <View style={[styles.container, { backgroundColor: c.background }]}>
         <SafeAreaView style={styles.loadingRoot}>
-          <Text style={[styles.loadingText, { color: M3.onSurfaceVariant }]}>Loading...</Text>
+          <Text style={[styles.loadingText, { color: c.onSurfaceVariant }]}>Loading...</Text>
         </SafeAreaView>
       </View>
     );
@@ -407,7 +337,7 @@ export default function NotesScreen() {
   const tabBarClearance = 50;
 
   return (
-    <View style={[styles.container, { backgroundColor: M3.background, paddingBottom: insets.bottom + tabBarClearance }]}>
+    <View style={[styles.container, { backgroundColor: c.background, paddingBottom: insets.bottom + tabBarClearance }]}>
       {/* Compact navigation bar - now with chip-style buttons */}
       <SafeAreaView edges={['top']} style={styles.navBar}>
         <View style={styles.navContent}>
@@ -428,7 +358,7 @@ export default function NotesScreen() {
             <Text style={styles.navChipText} numberOfLines={1}>
               {currentBook?.title || 'Books'}
             </Text>
-            <Feather name="chevron-down" size={16} color={M3.onSurfaceVariant} />
+            <Feather name="chevron-down" size={16} color={theme.colors.onSurfaceVariant} />
           </TouchableOpacity>
 
           {/* Divider */}
@@ -443,11 +373,11 @@ export default function NotesScreen() {
             }}
             activeOpacity={0.7}
           >
-            <Feather name="file-text" size={16} color={M3.onSurfaceVariant} />
+            <Feather name="file-text" size={16} color={theme.colors.onSurfaceVariant} />
             <Text style={styles.navChipText} numberOfLines={1}>
               {selectedPage?.title || 'Pages'}
             </Text>
-            <Feather name="chevron-down" size={16} color={M3.onSurfaceVariant} />
+            <Feather name="chevron-down" size={16} color={theme.colors.onSurfaceVariant} />
           </TouchableOpacity>
 
           {/* Action buttons */}
@@ -457,14 +387,14 @@ export default function NotesScreen() {
               onPress={() => { handleCloseDropdowns(); setShowPageModal(true); }}
               hitSlop={8}
             >
-              <Feather name="file-plus" size={20} color={M3.primary} />
+              <Feather name="file-plus" size={20} color={theme.colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.navIconBtn}
               onPress={() => { handleCloseDropdowns(); setShowBookModal(true); }}
               hitSlop={8}
             >
-              <Feather name="book" size={20} color={M3.primary} />
+              <Feather name="book" size={20} color={theme.colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -483,7 +413,7 @@ export default function NotesScreen() {
               onPress={handleSavePage}
               hitSlop={8}
             >
-              <Feather name="save" size={18} color={M3.primary} />
+              <Feather name="save" size={18} color={theme.colors.primary} />
             </TouchableOpacity>
           </View>
           
@@ -503,7 +433,7 @@ export default function NotesScreen() {
       ) : (
         <View style={styles.emptyState}>
           <View style={styles.emptyIconWrap}>
-            <Feather name="file-text" size={44} color={M3.outline} />
+            <Feather name="file-text" size={44} color={theme.colors.outline} />
           </View>
           <Text style={styles.emptyTitle}>No page selected</Text>
           <Text style={styles.emptySub}>Create a book and add a page to start</Text>
@@ -511,7 +441,7 @@ export default function NotesScreen() {
             style={styles.emptyBtn}
             onPress={() => setShowPageModal(true)}
           >
-            <Feather name="plus" size={18} color={M3.onPrimary} />
+            <Feather name="plus" size={18} color={theme.colors.onPrimary} />
             <Text style={styles.emptyBtnText}>New page</Text>
           </TouchableOpacity>
         </View>
@@ -529,7 +459,7 @@ export default function NotesScreen() {
               value={newBookTitle}
               onChangeText={setNewBookTitle}
               placeholder="Book title"
-              placeholderTextColor={M3.onSurfaceVariant}
+              placeholderTextColor={theme.colors.onSurfaceVariant}
               autoFocus
             />
             <Text style={styles.modalLabel}>ICON</Text>
@@ -569,7 +499,7 @@ export default function NotesScreen() {
               value={newPageTitle}
               onChangeText={setNewPageTitle}
               placeholder="Page name (optional)"
-              placeholderTextColor={M3.onSurfaceVariant}
+              placeholderTextColor={theme.colors.onSurfaceVariant}
             />
             <Text style={styles.modalLabel}>TEMPLATE</Text>
             <ScrollView style={styles.templateScroll} contentContainerStyle={styles.templateGrid} showsVerticalScrollIndicator={false}>
@@ -617,7 +547,7 @@ export default function NotesScreen() {
             <View style={styles.dropdownHeader}>
               <Text style={styles.dropdownTitle}>Books</Text>
               <TouchableOpacity onPress={handleCloseDropdowns} hitSlop={8}>
-                <Feather name="x" size={20} color={M3.onSurfaceVariant} />
+                <Feather name="x" size={20} color={theme.colors.onSurfaceVariant} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.dropdownScroll} showsVerticalScrollIndicator={false}>
@@ -635,14 +565,14 @@ export default function NotesScreen() {
                           value={editingBookTitle}
                           onChangeText={setEditingBookTitle}
                           placeholder="Book Title"
-                          placeholderTextColor={M3.onSurfaceVariant}
+                          placeholderTextColor={theme.colors.onSurfaceVariant}
                           autoFocus
                         />
                         <TouchableOpacity onPress={handleSaveBookRename} style={styles.bookEditBtn}>
-                          <Feather name="check" size={18} color={M3.primary} />
+                          <Feather name="check" size={18} color={theme.colors.primary} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={handleCancelBookRename} style={styles.bookEditBtn}>
-                          <Feather name="x" size={18} color={M3.error} />
+                          <Feather name="x" size={18} color={theme.colors.error} />
                         </TouchableOpacity>
                       </View>
                     ) : (
@@ -659,13 +589,13 @@ export default function NotesScreen() {
                         </Text>
                         <View style={styles.bookActions}>
                           <TouchableOpacity onPress={() => handleToggleBookFavorite(book.id)} hitSlop={8}>
-                            <FontAwesome5 name="star" size={16} color={book.favorited ? '#FFAB00' : M3.outlineVariant} solid={book.favorited} />
+                            <FontAwesome5 name="star" size={16} color={book.favorited ? STAR_COLOR : theme.colors.outlineVariant} solid={book.favorited} />
                           </TouchableOpacity>
                           <TouchableOpacity onPress={() => handleRenameBook(book)} hitSlop={8}>
-                            <Feather name="edit-2" size={16} color={M3.primary} />
+                            <Feather name="edit-2" size={16} color={theme.colors.primary} />
                           </TouchableOpacity>
                           <TouchableOpacity onLongPress={() => handleDeleteBook(book.id)} delayLongPress={500} hitSlop={8}>
-                            <Feather name="trash-2" size={16} color={M3.error} />
+                            <Feather name="trash-2" size={16} color={theme.colors.error} />
                           </TouchableOpacity>
                         </View>
                       </TouchableOpacity>
@@ -685,7 +615,7 @@ export default function NotesScreen() {
             <View style={styles.dropdownHeader}>
               <Text style={styles.dropdownTitle}>Pages</Text>
               <TouchableOpacity onPress={handleCloseDropdowns} hitSlop={8}>
-                <Feather name="x" size={20} color={M3.onSurfaceVariant} />
+                <Feather name="x" size={20} color={theme.colors.onSurfaceVariant} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.dropdownScroll} showsVerticalScrollIndicator={false}>
@@ -706,7 +636,7 @@ export default function NotesScreen() {
                     <Text style={[styles.pageText, selectedPageId === page.id && styles.pageTextActive]} numberOfLines={1}>
                       {page.title || 'Untitled'}
                     </Text>
-                    {selectedPageId === page.id && <Feather name="check" size={18} color={M3.primary} />}
+                    {selectedPageId === page.id && <Feather name="check" size={18} color={theme.colors.primary} />}
                   </TouchableOpacity>
                 ))
               )}
@@ -718,7 +648,9 @@ export default function NotesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createNotesStyles(theme: AppTheme) {
+  const c = theme.colors;
+  return StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -732,12 +664,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: 0.15,
   },
-  
-  // Navigation bar - compact and functional
   navBar: {
-    backgroundColor: M3.surfaceContainerLow,
+    backgroundColor: c.surfaceVariant,
     borderBottomWidth: 0.5,
-    borderBottomColor: M3.outlineVariant,
+    borderBottomColor: c.outlineVariant,
   },
   navContent: {
     marginTop:7,
@@ -751,7 +681,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: M3.surfaceContainerHighest,
+    backgroundColor: c.surfaceVariant,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -769,14 +699,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '500',
-    color: M3.onSurface,
+    color: c.onSurface,
     letterSpacing: 0.1,
     minWidth: 0,
   },
   navDivider: {
     width: 1,
     height: 24,
-    backgroundColor: M3.outlineVariant,
+    backgroundColor: c.outlineVariant,
   },
   navActions: {
     flexDirection: 'row',
@@ -786,7 +716,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: M3.primaryContainer,
+    backgroundColor: c.primaryContainer,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -796,7 +726,7 @@ const styles = StyleSheet.create({
     flex: 1,
     maxWidth: '98%',
     marginLeft: 3,
-    backgroundColor: M3.surface,
+    backgroundColor: c.surface,
   },
   editorHeader: {
     flexDirection: 'row',
@@ -805,13 +735,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: M3.outlineVariant,
+    borderBottomColor: c.outlineVariant,
   },
   editorTitle: {
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
-    color: M3.onSurface,
+    color: c.onSurface,
     letterSpacing: 0.15,
     marginRight: 12,
   },
@@ -819,7 +749,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: M3.primaryContainer,
+    backgroundColor: c.primaryContainer,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -835,7 +765,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: M3.surfaceContainerHighest,
+    backgroundColor: c.surfaceVariant,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -843,13 +773,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '500',
-    color: M3.onSurface,
+    color: c.onSurface,
     marginBottom: 8,
     letterSpacing: 0,
   },
   emptySub: {
     fontSize: 14,
-    color: M3.onSurfaceVariant,
+    color: c.onSurfaceVariant,
     fontWeight: '400',
     textAlign: 'center',
     marginBottom: 24,
@@ -859,11 +789,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: M3.primary,
+    backgroundColor: c.primary,
     borderRadius: 20,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    shadowColor: M3.shadow,
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
@@ -872,26 +802,26 @@ const styles = StyleSheet.create({
   emptyBtnText: {
     fontSize: 14,
     fontWeight: '500',
-    color: M3.onPrimary,
+    color: c.onPrimary,
     letterSpacing: 0.1,
   },
   
   // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: M3.scrim,
+    backgroundColor: c.scrim,
   },
   modalSheet: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: M3.surfaceContainerLow,
+    backgroundColor: c.surfaceVariant,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 24,
     paddingTop: 12,
-    shadowColor: M3.shadow,
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.15,
     shadowRadius: 16,
@@ -902,7 +832,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 4,
     borderRadius: 2,
-    backgroundColor: M3.onSurfaceVariant,
+    backgroundColor: c.onSurfaceVariant,
     opacity: 0.4,
     alignSelf: 'center',
     marginBottom: 20,
@@ -910,25 +840,25 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 24,
     fontWeight: '400',
-    color: M3.onSurface,
+    color: c.onSurface,
     marginBottom: 20,
     letterSpacing: 0,
   },
   modalInput: {
     borderRadius: 12,
-    backgroundColor: M3.surfaceContainerHighest,
+    backgroundColor: c.surfaceVariant,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: M3.onSurface,
+    color: c.onSurface,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: M3.outline,
+    borderColor: c.outline,
   },
   modalLabel: {
     fontSize: 11,
     fontWeight: '500',
-    color: M3.onSurfaceVariant,
+    color: c.onSurfaceVariant,
     letterSpacing: 0.5,
     marginBottom: 12,
   },
@@ -946,16 +876,16 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: M3.outline,
-    backgroundColor: M3.surfaceContainerHighest,
+    borderColor: c.outline,
+    backgroundColor: c.surfaceVariant,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   iconSelected: {
     borderWidth: 2,
-    borderColor: M3.primary,
-    backgroundColor: M3.secondaryContainer,
+    borderColor: c.primary,
+    backgroundColor: c.secondaryContainer,
   },
   iconImg: {
     width: '85%',
@@ -974,15 +904,15 @@ const styles = StyleSheet.create({
     width: '48%',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: M3.outline,
-    backgroundColor: M3.surfaceContainerHighest,
+    borderColor: c.outline,
+    backgroundColor: c.surfaceVariant,
     padding: 12,
     minHeight: 110,
   },
   templateSelected: {
     borderWidth: 2,
-    borderColor: M3.primary,
-    backgroundColor: M3.secondaryContainer,
+    borderColor: c.primary,
+    backgroundColor: c.secondaryContainer,
   },
   templateHeader: {
     flexDirection: 'row',
@@ -994,28 +924,28 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '500',
-    color: M3.onSurface,
+    color: c.onSurface,
     letterSpacing: 0.1,
   },
   templateNameSelected: {
-    color: M3.primary,
+    color: c.primary,
   },
   templateBadge: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: M3.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   templateBadgeText: {
-    color: M3.onPrimary,
+    color: c.onPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
   templateDesc: {
     fontSize: 12,
-    color: M3.onSurfaceVariant,
+    color: c.onSurfaceVariant,
     marginBottom: 8,
     lineHeight: 16,
     letterSpacing: 0.4,
@@ -1026,14 +956,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   templateTag: {
-    backgroundColor: M3.surface,
+    backgroundColor: c.surface,
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
   templateTagText: {
     fontSize: 10,
-    color: M3.onSurfaceVariant,
+    color: c.onSurfaceVariant,
     fontWeight: '500',
     letterSpacing: 0.4,
   },
@@ -1052,15 +982,15 @@ const styles = StyleSheet.create({
   modalCancelText: {
     fontSize: 14,
     fontWeight: '500',
-    color: M3.primary,
+    color: c.primary,
     letterSpacing: 0.1,
   },
   modalCreate: {
-    backgroundColor: M3.primary,
+    backgroundColor: c.primary,
     borderRadius: 20,
     paddingHorizontal: 24,
     paddingVertical: 10,
-    shadowColor: M3.shadow,
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
@@ -1069,21 +999,21 @@ const styles = StyleSheet.create({
   modalCreateText: {
     fontSize: 14,
     fontWeight: '500',
-    color: M3.onPrimary,
+    color: c.onPrimary,
     letterSpacing: 0.1,
   },
   
   // Dropdowns
   dropdownOverlay: {
     flex: 1,
-    backgroundColor: M3.scrim,
+    backgroundColor: c.scrim,
     paddingTop: 100,
     paddingHorizontal: 16,
   },
   dropdownContent: {
-    backgroundColor: M3.surfaceContainerLow,
+    backgroundColor: c.surfaceVariant,
     borderRadius: 16,
-    shadowColor: M3.shadow,
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
@@ -1098,12 +1028,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: M3.outlineVariant,
+    borderBottomColor: c.outlineVariant,
   },
   dropdownTitle: {
     fontSize: 16,
     fontWeight: '500',
-    color: M3.onSurface,
+    color: c.onSurface,
     letterSpacing: 0.15,
   },
   dropdownScroll: {
@@ -1113,7 +1043,7 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     paddingHorizontal: 16,
     fontSize: 14,
-    color: M3.onSurfaceVariant,
+    color: c.onSurfaceVariant,
     textAlign: 'center',
     letterSpacing: 0.25,
   },
@@ -1123,7 +1053,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: M3.outlineVariant,
+    borderBottomColor: c.outlineVariant,
   },
   bookRow: {
     flexDirection: 'row',
@@ -1138,13 +1068,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '400',
-    color: M3.onSurface,
+    color: c.onSurface,
     letterSpacing: 0.15,
     minWidth: 0,
   },
   bookTextActive: {
     fontWeight: '500',
-    color: M3.primary,
+    color: c.primary,
   },
   bookActions: {
     flexDirection: 'row',
@@ -1158,12 +1088,12 @@ const styles = StyleSheet.create({
   bookEditInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: M3.outline,
+    borderColor: c.outline,
     borderRadius: 8,
     padding: 10,
     fontSize: 15,
-    backgroundColor: M3.surfaceContainerHighest,
-    color: M3.onSurface,
+    backgroundColor: c.surfaceVariant,
+    color: c.onSurface,
   },
   bookEditBtn: {
     padding: 8,
@@ -1177,21 +1107,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: M3.outlineVariant,
+    borderBottomColor: c.outlineVariant,
   },
   pageItemActive: {
-    backgroundColor: M3.secondaryContainer,
+    backgroundColor: c.secondaryContainer,
   },
   pageText: {
     flex: 1,
     fontSize: 15,
     fontWeight: '400',
-    color: M3.onSurface,
+    color: c.onSurface,
     letterSpacing: 0.15,
     marginRight: 8,
   },
   pageTextActive: {
     fontWeight: '500',
-    color: M3.primary,
+    color: c.primary,
   },
-});
+  });
+}

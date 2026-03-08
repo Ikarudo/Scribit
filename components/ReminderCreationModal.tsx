@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -13,20 +13,11 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from 'react-native-paper';
 import { Feather } from '@expo/vector-icons';
 import DatePickerModal from './DatePickerModal';
 import TimePickerModal from './TimePickerModal';
-
-const M3 = {
-  surface: '#FFFFFF',
-  surfaceContainerHigh: '#F0EBF8',
-  primary: '#7C5DE8',
-  onPrimary: '#FFFFFF',
-  onSurface: '#1C1B22',
-  onSurfaceVariant: '#5C5868',
-  outline: '#D4CFE0',
-  scrim: 'rgba(28, 27, 34, 0.4)',
-};
+import type { AppTheme } from '@/theme';
 
 type ReminderCreationModalProps = {
   visible: boolean;
@@ -34,11 +25,152 @@ type ReminderCreationModalProps = {
   onSave: (data: { title: string; date: string; time: string }) => void | Promise<void>;
 };
 
+function createStyles(theme: AppTheme) {
+  const c = theme.colors;
+  return StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: c.scrim,
+    },
+    sheet: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: c.surface,
+      borderTopLeftRadius: 32,
+      borderTopRightRadius: 32,
+      paddingHorizontal: 24,
+      paddingTop: 12,
+      maxHeight: '88%',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 16,
+      elevation: 12,
+    },
+    handle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: c.outline,
+      alignSelf: 'center',
+      marginBottom: 20,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: c.onSurface,
+      letterSpacing: -0.3,
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: c.onSurfaceVariant,
+      letterSpacing: 1.2,
+      marginBottom: 10,
+    },
+    scroll: {
+      maxHeight: 280,
+      marginBottom: 20,
+    },
+    input: {
+      borderRadius: 16,
+      backgroundColor: c.surfaceVariant,
+      borderWidth: 1.5,
+      borderColor: c.outline,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+      fontSize: 16,
+      color: c.onSurface,
+      marginBottom: 20,
+    },
+    dateButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 16,
+      backgroundColor: c.surfaceVariant,
+      borderWidth: 1.5,
+      borderColor: c.outline,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+      marginBottom: 20,
+    },
+    dateButtonText: {
+      flex: 1,
+      fontSize: 16,
+      color: c.onSurface,
+    },
+    timeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 16,
+      backgroundColor: c.surfaceVariant,
+      borderWidth: 1.5,
+      borderColor: c.outline,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+      marginBottom: 8,
+    },
+    timeButtonText: {
+      flex: 1,
+      fontSize: 16,
+      color: c.onSurface,
+    },
+    placeholder: {
+      color: c.onSurfaceVariant,
+    },
+    clearBtn: {
+      padding: 4,
+    },
+    actions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      gap: 12,
+    },
+    cancelBtn: {
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+    },
+    cancelText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: c.onSurfaceVariant,
+    },
+    saveBtn: {
+      backgroundColor: c.primary,
+      borderRadius: 16,
+      paddingHorizontal: 28,
+      paddingVertical: 14,
+      minWidth: 100,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: c.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    saveBtnDisabled: {
+      opacity: 0.6,
+    },
+    saveText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: c.onPrimary,
+    },
+  });
+}
+
 export default function ReminderCreationModal({
   visible,
   onClose,
   onSave,
 }: ReminderCreationModalProps) {
+  const theme = useTheme<AppTheme>();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
@@ -140,7 +272,7 @@ export default function ReminderCreationModal({
               value={title}
               onChangeText={setTitle}
               placeholder="Reminder title"
-              placeholderTextColor={M3.onSurfaceVariant}
+              placeholderTextColor={theme.colors.onSurfaceVariant}
             />
 
             <Text style={styles.label}>DATE</Text>
@@ -149,7 +281,7 @@ export default function ReminderCreationModal({
               onPress={() => setShowDatePicker(true)}
               activeOpacity={0.7}
             >
-              <Feather name="calendar" size={18} color={M3.primary} style={{ marginRight: 10 }} />
+              <Feather name="calendar" size={18} color={theme.colors.primary} style={{ marginRight: 10 }} />
               <Text style={[styles.dateButtonText, !date && styles.placeholder]}>
                 {date ? formatDateDisplay(date) : 'Select date'}
               </Text>
@@ -162,7 +294,7 @@ export default function ReminderCreationModal({
                   style={styles.clearBtn}
                   hitSlop={8}
                 >
-                  <Feather name="x" size={18} color={M3.onSurfaceVariant} />
+                  <Feather name="x" size={18} color={theme.colors.onSurfaceVariant} />
                 </TouchableOpacity>
               ) : null}
             </TouchableOpacity>
@@ -173,7 +305,7 @@ export default function ReminderCreationModal({
               onPress={() => setShowTimePicker(true)}
               activeOpacity={0.7}
             >
-              <Feather name="clock" size={18} color={M3.primary} style={{ marginRight: 10 }} />
+              <Feather name="clock" size={18} color={theme.colors.primary} style={{ marginRight: 10 }} />
               <Text style={[styles.timeButtonText, !time && styles.placeholder]}>
                 {time ? formatTimeDisplay(time) : 'Select time'}
               </Text>
@@ -186,7 +318,7 @@ export default function ReminderCreationModal({
                   style={styles.clearBtn}
                   hitSlop={8}
                 >
-                  <Feather name="x" size={18} color={M3.onSurfaceVariant} />
+                  <Feather name="x" size={18} color={theme.colors.onSurfaceVariant} />
                 </TouchableOpacity>
               ) : null}
             </TouchableOpacity>
@@ -235,139 +367,3 @@ export default function ReminderCreationModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: M3.scrim,
-  },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: M3.surface,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    maxHeight: '88%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: M3.outline,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: M3.onSurface,
-    letterSpacing: -0.3,
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: M3.onSurfaceVariant,
-    letterSpacing: 1.2,
-    marginBottom: 10,
-  },
-  scroll: {
-    maxHeight: 280,
-    marginBottom: 20,
-  },
-  input: {
-    borderRadius: 16,
-    backgroundColor: M3.surfaceContainerHigh,
-    borderWidth: 1.5,
-    borderColor: M3.outline,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: M3.onSurface,
-    marginBottom: 20,
-  },
-  dateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    backgroundColor: M3.surfaceContainerHigh,
-    borderWidth: 1.5,
-    borderColor: M3.outline,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    marginBottom: 20,
-  },
-  dateButtonText: {
-    flex: 1,
-    fontSize: 16,
-    color: M3.onSurface,
-  },
-  timeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    backgroundColor: M3.surfaceContainerHigh,
-    borderWidth: 1.5,
-    borderColor: M3.outline,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    marginBottom: 8,
-  },
-  timeButtonText: {
-    flex: 1,
-    fontSize: 16,
-    color: M3.onSurface,
-  },
-  placeholder: {
-    color: M3.onSurfaceVariant,
-  },
-  clearBtn: {
-    padding: 4,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 12,
-  },
-  cancelBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-  },
-  cancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: M3.onSurfaceVariant,
-  },
-  saveBtn: {
-    backgroundColor: M3.primary,
-    borderRadius: 16,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    minWidth: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: M3.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  saveBtnDisabled: {
-    opacity: 0.6,
-  },
-  saveText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: M3.onPrimary,
-  },
-});

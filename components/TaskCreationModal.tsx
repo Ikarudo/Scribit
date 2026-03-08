@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -14,23 +14,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
 import { Task, TaskPriority } from './TasksProvider';
 import DatePickerModal from './DatePickerModal';
 import TimePickerModal from './TimePickerModal';
+import type { AppTheme } from '@/theme';
 
-const M3 = {
-  surface: '#FFFFFF',
-  surfaceContainerHigh: '#F0EBF8',
-  primary: '#7C5DE8',
-  primaryContainer: '#E8E0FC',
-  onPrimary: '#FFFFFF',
-  onSurface: '#1C1B22',
-  onSurfaceVariant: '#5C5868',
-  outline: '#D4CFE0',
-  errorContainer: '#FFEBEE',
-  onErrorContainer: '#b85757',
-  scrim: 'rgba(28, 27, 34, 0.4)',
-};
 const PRIORITY_COLORS = { High: '#E85D5D', Medium: '#E8B83C', Low: '#5CB85C' };
 
 const PRIORITY_OPTIONS: TaskPriority[] = ['High', 'Medium', 'Low'];
@@ -43,6 +32,211 @@ type TaskCreationModalProps = {
   initialTask?: Task;
 };
 
+function createStyles(theme: AppTheme) {
+  const c = theme.colors;
+  return StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: c.scrim,
+    },
+    sheet: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: c.surface,
+      borderTopLeftRadius: 32,
+      borderTopRightRadius: 32,
+      paddingHorizontal: 24,
+      paddingTop: 12,
+      maxHeight: '90%',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 16,
+      elevation: 12,
+    },
+    handle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: c.outline,
+      alignSelf: 'center',
+      marginBottom: 20,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: c.onSurface,
+      letterSpacing: -0.3,
+      marginBottom: 20,
+    },
+    scroll: {
+      maxHeight: 400,
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: c.onSurfaceVariant,
+      letterSpacing: 1.2,
+      marginBottom: 10,
+    },
+    input: {
+      borderRadius: 16,
+      backgroundColor: c.surfaceVariant,
+      borderWidth: 1.5,
+      borderColor: c.outline,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+      fontSize: 16,
+      color: c.onSurface,
+      marginBottom: 20,
+    },
+    textArea: {
+      minHeight: 96,
+      textAlignVertical: 'top',
+    },
+    hint: {
+      fontSize: 12,
+      color: c.onSurfaceVariant,
+      marginTop: -8,
+      marginBottom: 12,
+    },
+    dateButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 16,
+      backgroundColor: c.surfaceVariant,
+      borderWidth: 1.5,
+      borderColor: c.outline,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+      marginBottom: 20,
+    },
+    dateButtonText: {
+      flex: 1,
+      fontSize: 16,
+      color: c.onSurface,
+    },
+    timeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 16,
+      backgroundColor: c.surfaceVariant,
+      borderWidth: 1.5,
+      borderColor: c.outline,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+      marginBottom: 20,
+    },
+    timeButtonText: {
+      flex: 1,
+      fontSize: 16,
+      color: c.onSurface,
+    },
+    placeholder: {
+      color: c.onSurfaceVariant,
+    },
+    clearBtn: {
+      padding: 4,
+    },
+    optionsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginBottom: 20,
+    },
+    optionButton: {
+      paddingVertical: 12,
+      paddingHorizontal: 18,
+      borderRadius: 14,
+      borderWidth: 2,
+      borderColor: c.outline,
+      backgroundColor: c.surfaceVariant,
+    },
+    optionText: {
+      fontSize: 14,
+      color: c.onSurface,
+      fontWeight: '600',
+    },
+    optionTextActive: {
+      color: '#FFFFFF',
+    },
+    checkboxRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    checkbox: {
+      width: 26,
+      height: 26,
+      borderRadius: 8,
+      borderWidth: 2,
+      borderColor: c.primary,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    checkboxChecked: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    checkboxLabel: {
+      fontSize: 16,
+      color: c.onSurface,
+      fontWeight: '500',
+    },
+    actions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      gap: 12,
+    },
+    deleteBtn: {
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 16,
+      backgroundColor: c.errorContainer,
+      marginRight: 'auto',
+    },
+    deleteText: {
+      color: c.onErrorContainer,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    cancelBtn: {
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+    },
+    cancelText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: c.onSurfaceVariant,
+    },
+    saveBtn: {
+      backgroundColor: c.primary,
+      borderRadius: 16,
+      paddingHorizontal: 28,
+      paddingVertical: 14,
+      minWidth: 88,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: c.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    saveText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: c.onPrimary,
+    },
+  });
+}
+
 export default function TaskCreationModal({
   visible,
   onClose,
@@ -50,6 +244,8 @@ export default function TaskCreationModal({
   onDelete,
   initialTask,
 }: TaskCreationModalProps) {
+  const theme = useTheme<AppTheme>();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('Medium');
@@ -193,7 +389,7 @@ export default function TaskCreationModal({
               value={name}
               onChangeText={setName}
               placeholder="Task name"
-              placeholderTextColor={M3.onSurfaceVariant}
+              placeholderTextColor={theme.colors.onSurfaceVariant}
             />
 
             <Text style={styles.label}>DESCRIPTION (OPTIONAL)</Text>
@@ -202,7 +398,7 @@ export default function TaskCreationModal({
               value={description}
               onChangeText={setDescription}
               placeholder="Description"
-              placeholderTextColor={M3.onSurfaceVariant}
+              placeholderTextColor={theme.colors.onSurfaceVariant}
               multiline
               numberOfLines={4}
             />
@@ -240,7 +436,7 @@ export default function TaskCreationModal({
               onPress={() => setShowDatePicker(true)}
               activeOpacity={0.7}
             >
-              <Feather name="calendar" size={18} color={M3.primary} style={{ marginRight: 10 }} />
+              <Feather name="calendar" size={18} color={theme.colors.primary} style={{ marginRight: 10 }} />
               <Text style={[styles.dateButtonText, !dueDate && styles.placeholder]}>
                 {dueDate ? formatDateDisplay(dueDate) : 'Select date'}
               </Text>
@@ -253,7 +449,7 @@ export default function TaskCreationModal({
                   style={styles.clearBtn}
                   hitSlop={8}
                 >
-                  <Feather name="x" size={18} color={M3.onSurfaceVariant} />
+                  <Feather name="x" size={18} color={theme.colors.onSurfaceVariant} />
                 </TouchableOpacity>
               )}
             </TouchableOpacity>
@@ -266,7 +462,7 @@ export default function TaskCreationModal({
                   onPress={() => setShowTimePicker(true)}
                   activeOpacity={0.7}
                 >
-                  <Feather name="clock" size={18} color={M3.primary} style={{ marginRight: 10 }} />
+                  <Feather name="clock" size={18} color={theme.colors.primary} style={{ marginRight: 10 }} />
                   <Text style={[styles.timeButtonText, !dueTime && styles.placeholder]}>
                     {dueTime ? formatTimeDisplay(dueTime) : 'Select time'}
                   </Text>
@@ -279,7 +475,7 @@ export default function TaskCreationModal({
                       style={styles.clearBtn}
                       hitSlop={8}
                     >
-                      <Feather name="x" size={18} color={M3.onSurfaceVariant} />
+                      <Feather name="x" size={18} color={theme.colors.onSurfaceVariant} />
                     </TouchableOpacity>
                   )}
                 </TouchableOpacity>
@@ -294,7 +490,7 @@ export default function TaskCreationModal({
                 style={[styles.checkbox, completed && styles.checkboxChecked]}
                 onPress={() => setCompleted(!completed)}
               >
-                {completed && <Feather name="check" size={14} color={M3.onPrimary} />}
+                {completed && <Feather name="check" size={14} color={theme.colors.onPrimary} />}
               </TouchableOpacity>
               <Text style={styles.checkboxLabel}>Mark as completed</Text>
             </View>
@@ -305,7 +501,7 @@ export default function TaskCreationModal({
                   style={[styles.checkbox, addReminder && styles.checkboxChecked]}
                   onPress={() => setAddReminder(!addReminder)}
                 >
-                  {addReminder && <Feather name="check" size={14} color={M3.onPrimary} />}
+                  {addReminder && <Feather name="check" size={14} color={theme.colors.onPrimary} />}
                 </TouchableOpacity>
                 <Text style={styles.checkboxLabel}>Add reminder for this task</Text>
               </View>
@@ -358,206 +554,4 @@ export default function TaskCreationModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: M3.scrim,
-  },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: M3.surface,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    maxHeight: '90%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: M3.outline,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: M3.onSurface,
-    letterSpacing: -0.3,
-    marginBottom: 20,
-  },
-  scroll: {
-    maxHeight: 400,
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: M3.onSurfaceVariant,
-    letterSpacing: 1.2,
-    marginBottom: 10,
-  },
-  input: {
-    borderRadius: 16,
-    backgroundColor: M3.surfaceContainerHigh,
-    borderWidth: 1.5,
-    borderColor: M3.outline,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: M3.onSurface,
-    marginBottom: 20,
-  },
-  textArea: {
-    minHeight: 96,
-    textAlignVertical: 'top',
-  },
-  hint: {
-    fontSize: 12,
-    color: M3.onSurfaceVariant,
-    marginTop: -8,
-    marginBottom: 12,
-  },
-  dateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    backgroundColor: M3.surfaceContainerHigh,
-    borderWidth: 1.5,
-    borderColor: M3.outline,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    marginBottom: 20,
-  },
-  dateButtonText: {
-    flex: 1,
-    fontSize: 16,
-    color: M3.onSurface,
-  },
-  timeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    backgroundColor: M3.surfaceContainerHigh,
-    borderWidth: 1.5,
-    borderColor: M3.outline,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    marginBottom: 20,
-  },
-  timeButtonText: {
-    flex: 1,
-    fontSize: 16,
-    color: M3.onSurface,
-  },
-  placeholder: {
-    color: M3.onSurfaceVariant,
-  },
-  clearBtn: {
-    padding: 4,
-  },
-  optionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 20,
-  },
-  optionButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: M3.outline,
-    backgroundColor: M3.surfaceContainerHigh,
-  },
-  optionText: {
-    fontSize: 14,
-    color: M3.onSurface,
-    fontWeight: '600',
-  },
-  optionTextActive: {
-    color: '#FFFFFF',
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  checkbox: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: M3.primary,
-    backgroundColor: M3.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  checkboxChecked: {
-    backgroundColor: M3.primary,
-    borderColor: M3.primary,
-  },
-  checkboxLabel: {
-    fontSize: 16,
-    color: M3.onSurface,
-    fontWeight: '500',
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 12,
-  },
-  deleteBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    backgroundColor: M3.errorContainer,
-    marginRight: 'auto',
-  },
-  deleteText: {
-    color: M3.onErrorContainer,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  cancelBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-  },
-  cancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: M3.onSurfaceVariant,
-  },
-  saveBtn: {
-    backgroundColor: M3.primary,
-    borderRadius: 16,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    minWidth: 88,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: M3.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  saveText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: M3.onPrimary,
-  },
-});
 
