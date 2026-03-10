@@ -38,4 +38,5 @@ yarn-error.*
 
 #Firebase Things
 FIREBASE_RULES_DEPLOYMENT.md
+FirebaseConfig.ts
 firestore.rules
